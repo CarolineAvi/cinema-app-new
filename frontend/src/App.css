@@ -1,0 +1,19 @@
+.App {
+  text-align: left;
+}
+
+/* Dodatkowe style specyficzne dla App */
+.App-header {
+  background-color: #282c34;
+  padding: 20px;
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+/* Override dla main content */
+main {
+  min-height: calc(100vh - 80px); /* 80px to wysokość header */
+}
