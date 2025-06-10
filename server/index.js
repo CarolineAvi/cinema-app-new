@@ -15,10 +15,6 @@ const bookingsRouter = require('./routes/bookings');
 const hallsRouter = require('./routes/halls');
 const showtimesRouter = require('./routes/showtimes');
 
-// Run admin seeder on startup if no admin exists
-const User = require('./models/user');
-const bcrypt = require('bcryptjs');
-
 async function startServer() {
     try {
         await mongoose.connect(process.env.MONGO_URI, {
@@ -30,34 +26,9 @@ async function startServer() {
             w: 'majority'
         });
         
-        mongoose.connection.on('error', err => {
-            console.error('MongoDB connection error:', err);
-        });
-
-        mongoose.connection.on('disconnected', () => {
-            console.log('MongoDB disconnected. Attempting to reconnect...');
-        });
-
-        mongoose.connection.on('connected', () => {
-            console.log('MongoDB connected successfully to:', process.env.MONGO_URI);
-        });
-
-        // Create admin user if doesn't exist
-        const adminExists = await User.findOne({ email: 'admin@cinema.local' });
-        if (!adminExists) {
-            const hash = await bcrypt.hash('admin123', 10);
-            const admin = new User({
-                name: 'Admin',
-                email: 'admin@cinema.local',
-                password: hash,
-                accessLevel: 1
-            });
-            await admin.save();
-            console.log('Default admin created: admin@cinema.local / admin123');
-        }
+        // Remove admin creation code from here since it's handled by seedAdmin.js
 
         // Setup routes
-        app.get('/', (req, res) => res.send('API running'));
         app.use('/api/movies', moviesRouter);
         app.use('/api/auth', authRouter);
         app.use('/api/users', usersRouter);

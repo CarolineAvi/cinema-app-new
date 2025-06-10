@@ -5,22 +5,45 @@ require('dotenv').config();
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/cinema';
 
+async function createInitialAdmin() {
+    const adminData = {
+        name: 'Admin',
+        email: 'admin@cinema.local',
+        password: 'admin123',
+        role: 'admin',
+        accessLevel: 1
+    };
+
+    try {
+        const hash = await bcrypt.hash(adminData.password, 10);
+        const admin = new User({
+            ...adminData,
+            password: hash
+        });
+        await admin.save();
+        console.log('Default admin created:', adminData.email);
+        return admin;
+    } catch (error) {
+        console.error('Error creating admin:', error);
+        throw error;
+    }
+}
+
 async function seedAdmin() {
     try {
         await mongoose.connect(MONGO_URI);
         console.log('Connected to MongoDB');
-        // Always remove any existing admin user to avoid role issues
-        await User.deleteOne({ email: 'admin@cinema.local' });
-        const hash = await bcrypt.hash('admin123', 10);
-        const admin = new User({
-            name: 'Admin',
-            email: 'admin@cinema.local',
-            password: hash,
-            role: 'admin',
-            accessLevel: 1
-        });
-        await admin.save();
-        console.log('Default admin created: admin@cinema.local / admin123');
+        
+        // Check if admin exists
+        const adminExists = await User.findOne({ role: 'admin' });
+        
+        if (!adminExists) {
+            await createInitialAdmin();
+            console.log('Admin seeding completed');
+        } else {
+            console.log('Admin already exists, skipping seed');
+        }
+        
         process.exit(0);
     } catch (error) {
         console.error('Error seeding admin:', error);

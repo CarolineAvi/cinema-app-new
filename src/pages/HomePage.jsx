@@ -7,9 +7,20 @@ const HomePage = () => {
     const [selectedMovie, setSelectedMovie] = useState(null);
 
     useEffect(() => {
-        fetch('http://localhost:5000/api/movies')
-            .then(res => res.json())
-            .then(setMovies);
+        Promise.all([
+            fetch('http://localhost:5000/api/movies'),
+            fetch('http://localhost:5000/api/showtimes')
+        ])
+            .then(([moviesRes, showtimesRes]) => 
+                Promise.all([moviesRes.json(), showtimesRes.json()])
+            )
+            .then(([moviesData, showtimesData]) => {
+                const moviesWithShowtimes = moviesData.map(movie => ({
+                    ...movie,
+                    showtimes: showtimesData.filter(st => st.movieId === movie._id)
+                }));
+                setMovies(moviesWithShowtimes);
+            });
     }, []);
 
     const handleMovieSelect = (movie) => {

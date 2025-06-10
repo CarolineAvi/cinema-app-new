@@ -1,6 +1,6 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext.jsx';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext.jsx';
 import Header from './components/Layout/Header.jsx';
 import HomePage from './pages/HomePage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
@@ -10,6 +10,22 @@ import AdminPage from './pages/AdminPage.jsx';
 import StaffPage from './pages/StaffPage.jsx';
 import './App.css';
 
+const ProtectedRoute = ({ children, allowedRoles }) => {
+    const { user, loading } = useAuth();
+    
+    if (loading) return <div>Loading...</div>;
+    
+    if (!user) return <Navigate to="/login" />;
+    if (!allowedRoles.includes(user.role)) {
+      // Redirect to appropriate dashboard based on role
+      if (user.role === 'admin') return <Navigate to="/admin" />;
+      if (user.role === 'staff') return <Navigate to="/staff" />;
+      return <Navigate to="/" />;
+    }
+    
+    return children;
+};
+
 function App() {
     return (
         <AuthProvider>
@@ -18,12 +34,24 @@ function App() {
                     <Header />
                     <main>
                         <Routes>
-                            <Route path="/" element={<HomePage />} />
+                            <Route path="/" element={
+                                <ProtectedRoute allowedRoles={['customer']}>
+                                    <HomePage />
+                                </ProtectedRoute>
+                            } />
                             <Route path="/login" element={<LoginPage />} />
                             <Route path="/profile" element={<ProfilePage />} />
                             <Route path="/booking/:showtimeId" element={<BookingPage />} />
-                            <Route path="/admin" element={<AdminPage />} />
-                            <Route path="/staff" element={<StaffPage />} />
+                            <Route path="/admin" element={
+                                <ProtectedRoute allowedRoles={['admin']}>
+                                    <AdminPage />
+                                </ProtectedRoute>
+                            } />
+                            <Route path="/staff" element={
+                                <ProtectedRoute allowedRoles={['staff']}>
+                                    <StaffPage />
+                                </ProtectedRoute>
+                            } />
                         </Routes>
                     </main>
                 </div>

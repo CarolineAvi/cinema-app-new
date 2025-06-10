@@ -30,13 +30,22 @@ router.post('/', auth, async (req, res) => {
         return res.status(403).json({ message: 'Admin access required' });
     }
 
+    // Validate input
+    const { name, capacity, status, seatingLayout } = req.body;
+    if (!name || !capacity || !seatingLayout || seatingLayout.rows == null || seatingLayout.seatsPerRow == null) {
+        return res.status(400).json({ message: 'Wszystkie pola są wymagane (nazwa, pojemność, układ miejsc).' });
+    }
+    if (typeof seatingLayout.rows !== 'number' || typeof seatingLayout.seatsPerRow !== 'number') {
+        return res.status(400).json({ message: 'Liczba rzędów i miejsc w rzędzie musi być liczbą.' });
+    }
+
     const hall = new Hall({
-        name: req.body.name,
-        capacity: req.body.capacity,
-        status: req.body.status,
+        name,
+        capacity,
+        status,
         seatingLayout: {
-            rows: req.body.seatingLayout.rows,
-            seatsPerRow: req.body.seatingLayout.seatsPerRow
+            rows: seatingLayout.rows,
+            seatsPerRow: seatingLayout.seatsPerRow
         }
     });
 
@@ -44,7 +53,11 @@ router.post('/', auth, async (req, res) => {
         const newHall = await hall.save();
         res.status(201).json(newHall);
     } catch (err) {
-        res.status(400).json({ message: err.message });
+        if (err.code === 11000) {
+            res.status(400).json({ message: 'Sala o tej nazwie już istnieje.' });
+        } else {
+            res.status(400).json({ message: err.message });
+        }
     }
 });
 

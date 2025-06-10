@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const ShowTime = require('../models/showtime');
+const Booking = require('../models/booking');
 const auth = require('../middleware/auth');
 
 // Get all showtimes
@@ -78,6 +79,32 @@ router.delete('/:id', auth, async (req, res) => {
         if (!showtime) return res.status(404).json({ message: 'Showtime not found' });
         await showtime.deleteOne();
         res.json({ message: 'Showtime deleted' });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// Check seat availability
+router.get('/:id/seats', async (req, res) => {
+    try {
+        const showtime = await ShowTime.findById(req.params.id);
+        if (!showtime) return res.status(404).json({ message: 'Showtime not found' });
+
+        // Get all bookings for this showtime
+        const bookings = await Booking.find({ 
+            showtimeId: req.params.id,
+            status: { $in: ['confirmed', 'checked-in'] }
+        });
+
+        // Get all occupied seats
+        const occupiedSeats = bookings.flatMap(booking => booking.seats);
+
+        // Return occupied seats and hall layout
+        res.json({
+            occupiedSeats,
+            hallLayout: showtime.hallLayout,
+            totalSeats: showtime.totalSeats
+        });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }

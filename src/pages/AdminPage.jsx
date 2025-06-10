@@ -48,6 +48,14 @@ const AdminPage = () => {
     });
     const [editingHall, setEditingHall] = useState(null);
 
+    // State for new staff
+    const [newStaff, setNewStaff] = useState({
+        name: '',
+        email: '',
+        password: '',
+        phone: '',
+    });
+
     useEffect(() => {
         // Sprawdź uprawnienia
         if (!user || user.role !== 'admin') {
@@ -96,7 +104,7 @@ const AdminPage = () => {
 
     const showMessage = (text, type = 'success') => {
         setMessage({ text, type });
-        setTimeout(() => setMessage(''), 3000);
+        setTimeout(() => setMessage(null), 3000);
     };
 
     // Zarządzanie filmami
@@ -107,7 +115,12 @@ const AdminPage = () => {
             const res = await fetch('http://localhost:5000/api/movies', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newMovie)
+                body: JSON.stringify({
+                    ...newMovie,
+                    duration: newMovie.duration ? parseInt(newMovie.duration) : 0,
+                    year: newMovie.year ? parseInt(newMovie.year) : 0,
+                    rating: newMovie.rating ? parseFloat(newMovie.rating) : 0
+                })
             });
             if (!res.ok) throw new Error('Błąd podczas dodawania filmu');
             const movie = await res.json();
@@ -143,25 +156,47 @@ const AdminPage = () => {
     // Zarządzanie seansami
     const handleAddShowtime = async (e) => {
         e.preventDefault();
+        if (!user || !user.token) {
+            showMessage('Brak ważnego tokena uwierzytelniającego. Zaloguj się ponownie.', 'error');
+            return;
+        }
         setLoading(true);
         try {
+            const selectedMovie = movies.find(m => m._id === newShowtime.movieId);
+            const selectedHall = halls.find(h => h._id === newShowtime.hallId);
+            const totalSeats = selectedHall
+                ? (selectedHall.seatingLayout?.rows || 0) * (selectedHall.seatingLayout?.seatsPerRow || 0)
+                : 0;
+
             const res = await fetch('http://localhost:5000/api/showtimes', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${user.token}`
+                },
                 body: JSON.stringify({
-                    ...newShowtime,
                     movieId: newShowtime.movieId,
+                    movieTitle: selectedMovie?.title,
                     hallId: newShowtime.hallId,
-                    price: parseInt(newShowtime.price)
+                    hall: selectedHall?.name,
+                    date: newShowtime.date,
+                    time: newShowtime.time,
+                    price: parseInt(newShowtime.price),
+                    totalSeats,
+                    soldTickets: 0,
+                    poster: selectedMovie?.poster
                 })
             });
-            if (!res.ok) throw new Error('Błąd podczas dodawania seansu');
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.message || 'Błąd podczas dodawania seansu');
+            }
             const showtime = await res.json();
             setShowtimes([...showtimes, showtime]);
             setNewShowtime({ movieId: '', date: '', time: '', hallId: '', price: '' });
             showMessage('Seans został dodany pomyślnie!');
         } catch (error) {
-            showMessage('Wystąpił błąd podczas dodawania seansu.', 'error');
+            showMessage(error.message || 'Wystąpił błąd podczas dodawania seansu.', 'error');
         } finally {
             setLoading(false);
         }
@@ -216,6 +251,10 @@ const AdminPage = () => {
     // Hall CRUD handlers
     const handleAddHall = async (e) => {
         e.preventDefault();
+        if (!user || !user.token) {
+            showMessage('Brak ważnego tokena uwierzytelniającego. Zaloguj się ponownie.', 'error');
+            return;
+        }
         setLoading(true);
         try {
             const res = await fetch('http://localhost:5000/api/halls', {
@@ -223,21 +262,24 @@ const AdminPage = () => {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user.token}` },
                 body: JSON.stringify({
                     name: newHall.name,
-                    capacity: parseInt(newHall.capacity),
+                    capacity: newHall.capacity ? parseInt(newHall.capacity) : 0,
                     status: newHall.status,
                     seatingLayout: {
-                        rows: parseInt(newHall.rows),
-                        seatsPerRow: parseInt(newHall.seatsPerRow)
+                        rows: newHall.rows ? parseInt(newHall.rows) : 0,
+                        seatsPerRow: newHall.seatsPerRow ? parseInt(newHall.seatsPerRow) : 0
                     }
                 })
             });
-            if (!res.ok) throw new Error('Błąd podczas dodawania sali');
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.message || 'Błąd podczas dodawania sali');
+            }
             const hall = await res.json();
             setHalls([...halls, hall]);
             setNewHall({ name: '', capacity: '', rows: '', seatsPerRow: '', status: 'active' });
             showMessage('Sala została dodana!');
         } catch (error) {
-            showMessage('Wystąpił błąd podczas dodawania sali.', 'error');
+            showMessage(error.message || 'Wystąpił błąd podczas dodawania sali.', 'error');
         } finally {
             setLoading(false);
         }
@@ -245,17 +287,24 @@ const AdminPage = () => {
 
     const handleDeleteHall = async (hallId) => {
         if (!window.confirm('Czy na pewno chcesz usunąć tę salę?')) return;
+        if (!user || !user.token) {
+            showMessage('Brak ważnego tokena uwierzytelniającego. Zaloguj się ponownie.', 'error');
+            return;
+        }
         setLoading(true);
         try {
             const res = await fetch(`http://localhost:5000/api/halls/${hallId}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${user.token}` }
             });
-            if (!res.ok) throw new Error('Błąd podczas usuwania sali');
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.message || 'Błąd podczas usuwania sali');
+            }
             setHalls(halls.filter(h => h._id !== hallId));
             showMessage('Sala została usunięta.');
         } catch (error) {
-            showMessage('Wystąpił błąd podczas usuwania sali.', 'error');
+            showMessage(error.message || 'Wystąpił błąd podczas usuwania sali.', 'error');
         } finally {
             setLoading(false);
         }
@@ -267,6 +316,10 @@ const AdminPage = () => {
 
     const handleUpdateHall = async (e) => {
         e.preventDefault();
+        if (!user || !user.token) {
+            showMessage('Brak ważnego tokena uwierzytelniającego. Zaloguj się ponownie.', 'error');
+            return;
+        }
         setLoading(true);
         try {
             const res = await fetch(`http://localhost:5000/api/halls/${editingHall._id}`, {
@@ -274,21 +327,78 @@ const AdminPage = () => {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user.token}` },
                 body: JSON.stringify({
                     name: editingHall.name,
-                    capacity: parseInt(editingHall.capacity),
+                    capacity: editingHall.capacity ? parseInt(editingHall.capacity) : 0,
                     status: editingHall.status,
                     seatingLayout: {
-                        rows: parseInt(editingHall.seatingLayout.rows),
-                        seatsPerRow: parseInt(editingHall.seatingLayout.seatsPerRow)
+                        rows: editingHall.seatingLayout.rows ? parseInt(editingHall.seatingLayout.rows) : 0,
+                        seatsPerRow: editingHall.seatingLayout.seatsPerRow ? parseInt(editingHall.seatingLayout.seatsPerRow) : 0
                     }
                 })
             });
-            if (!res.ok) throw new Error('Błąd podczas edycji sali');
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.message || 'Błąd podczas edycji sali');
+            }
             const updated = await res.json();
             setHalls(halls.map(h => h._id === updated._id ? updated : h));
             setEditingHall(null);
             showMessage('Sala została zaktualizowana!');
         } catch (error) {
-            showMessage('Wystąpił błąd podczas edycji sali.', 'error');
+            showMessage(error.message || 'Wystąpił błąd podczas edycji sali.', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleMovieClick = (movieId) => {
+        navigate(`/movies/${movieId}`);
+    };
+
+    // Add staff management tab
+    const handleAddStaff = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            const res = await fetch('http://localhost:5000/api/auth/register', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${user.token}`
+                },
+                body: JSON.stringify({
+                    ...newStaff,
+                    role: 'staff',
+                    accessLevel: 2
+                })
+            });
+            if (!res.ok) throw new Error('Błąd podczas dodawania pracownika');
+            const data = await res.json();
+            setUsers([...users, data.user]);
+            setNewStaff({ name: '', email: '', password: '', phone: '' });
+            showMessage('Pracownik został dodany pomyślnie!');
+        } catch (error) {
+            showMessage('Wystąpił błąd podczas dodawania pracownika.', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDeleteUser = async (userId) => {
+        if (!window.confirm('Czy na pewno chcesz usunąć tego użytkownika?')) return;
+        setLoading(true);
+        try {
+            const res = await fetch(`http://localhost:5000/api/users/${userId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${user.token}` }
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.message || 'Błąd podczas usuwania użytkownika');
+            }
+            setUsers(users.filter(u => u._id !== userId));
+            showMessage('Użytkownik został usunięty.');
+        } catch (error) {
+            showMessage(error.message || 'Wystąpił błąd podczas usuwania użytkownika.', 'error');
         } finally {
             setLoading(false);
         }
@@ -349,6 +459,12 @@ const AdminPage = () => {
                     >
                         🏛️ Sale
                     </button>
+                    <button
+                        className={`tab-btn ${activeTab === 'staff' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('staff')}
+                    >
+                        👥 Pracownicy
+                    </button>
                 </div>
 
                 <div className="admin-content">
@@ -401,8 +517,11 @@ const AdminPage = () => {
                                 <div className="chart-card">
                                     <h3>Najpopularniejsze filmy</h3>
                                     <div className="popular-movies">
-                                        {movies.slice(0, 3).map((movie, index) => (
-                                            <div key={movie.id} className="popular-movie">
+                                        {[...movies]
+                                            .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+                                            .slice(0, 3)
+                                            .map((movie, index) => (
+                                            <div key={movie._id} className="popular-movie">
                                                 <span className="movie-rank">#{index + 1}</span>
                                                 <span className="movie-title">{movie.title}</span>
                                                 <span className="movie-rating">⭐ {movie.rating}</span>
@@ -415,21 +534,63 @@ const AdminPage = () => {
                             <div className="recent-activity">
                                 <h3>Ostatnia aktywność</h3>
                                 <div className="activity-list">
-                                    <div className="activity-item">
-                                        <span className="activity-icon">🎟️</span>
-                                        <span className="activity-text">Nowa rezerwacja: Jan Kowalski - Avengers: Endgame</span>
-                                        <span className="activity-time">5 min temu</span>
-                                    </div>
-                                    <div className="activity-item">
-                                        <span className="activity-icon">👤</span>
-                                        <span className="activity-text">Nowy użytkownik: anna.nowak@email.com</span>
-                                        <span className="activity-time">2 godz. temu</span>
-                                    </div>
-                                    <div className="activity-item">
-                                        <span className="activity-icon">🎬</span>
-                                        <span className="activity-text">Dodano nowy seans: Dune - 20:00</span>
-                                        <span className="activity-time">1 dzień temu</span>
-                                    </div>
+                                    {/* Recent bookings */}
+                                    {bookings.length > 0 && bookings
+                                        .slice()
+                                        .sort((a, b) => new Date(b.createdAt || b.bookingDate) - new Date(a.createdAt || a.bookingDate))
+                                        .slice(0, 3)
+                                        .map((booking) => (
+                                            <div className="activity-item" key={booking._id}>
+                                                <span className="activity-icon">🎟️</span>
+                                                <span className="activity-text">
+                                                    Nowa rezerwacja: {booking.customerName || '-'} - {booking.movieTitle || '-'}
+                                                </span>
+                                                <span className="activity-time">
+                                                    {booking.bookingDate || booking.date || '-'}
+                                                </span>
+                                            </div>
+                                        ))
+                                    }
+                                    {/* Recent users */}
+                                    {users.length > 0 && users
+                                        .slice()
+                                        .sort((a, b) => new Date(b.createdAt || b.joinDate) - new Date(a.createdAt || a.joinDate))
+                                        .slice(0, 1)
+                                        .map((user) => (
+                                            <div className="activity-item" key={user._id}>
+                                                <span className="activity-icon">👤</span>
+                                                <span className="activity-text">
+                                                    Nowy użytkownik: {user.email}
+                                                </span>
+                                                <span className="activity-time">
+                                                    {user.joinDate || '-'}
+                                                </span>
+                                            </div>
+                                        ))
+                                    }
+                                    {/* Recent showtimes */}
+                                    {showtimes.length > 0 && showtimes
+                                        .slice()
+                                        .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date))
+                                        .slice(0, 1)
+                                        .map((showtime) => (
+                                            <div className="activity-item" key={showtime._id}>
+                                                <span className="activity-icon">🎬</span>
+                                                <span className="activity-text">
+                                                    Dodano nowy seans: {movies.find(m => m._id === showtime.movieId)?.title || '-'} - {showtime.time}
+                                                </span>
+                                                <span className="activity-time">
+                                                    {showtime.date || '-'}
+                                                </span>
+                                            </div>
+                                        ))
+                                    }
+                                    {/* If no activity */}
+                                    {bookings.length === 0 && users.length === 0 && showtimes.length === 0 && (
+                                        <div className="activity-item">
+                                            <span className="activity-text">Brak aktywności</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -541,7 +702,12 @@ const AdminPage = () => {
                                 <h3>Lista filmów ({movies.length})</h3>
                                 <div className="movies-table">
                                     {movies.map(movie => (
-                                        <div key={movie._id} className="movie-row">
+                                        <div
+                                            key={movie._id}
+                                            className="movie-row"
+                                            style={{ cursor: 'pointer' }}
+                                            onClick={() => handleMovieClick(movie._id)}
+                                        >
                                             <div className="movie-poster">
                                                 <img src={movie.poster} alt={movie.title} />
                                             </div>
@@ -551,7 +717,7 @@ const AdminPage = () => {
                                                 <p>Reż.: {movie.director}</p>
                                                 <div className="movie-rating">⭐ {movie.rating}/10</div>
                                             </div>
-                                            <div className="movie-actions">
+                                            <div className="movie-actions" onClick={e => e.stopPropagation()}>
                                                 <button
                                                     className="btn btn-danger btn-sm"
                                                     onClick={() => handleDeleteMovie(movie._id)}
@@ -620,20 +786,58 @@ const AdminPage = () => {
                                         <span>Data</span>
                                         <span>Godzina</span>
                                         <span>Cena</span>
+                                        <span>Miejsca</span>
                                         <span>Akcje</span>
                                     </div>
-                                    {showtimes.map(showtime => (
-                                        <div key={showtime._id} className="table-row">
-                                            <span className="showtime-movie">{movies.find(m => m._id === showtime.movieId)?.title || '—'}</span>
-                                            <span>{halls.find(h => h._id === showtime.hallId)?.name || '—'}</span>
-                                            <span>{showtime.date}</span>
-                                            <span>{showtime.time}</span>
-                                            <span>{showtime.price} zł</span>
-                                            <span>
-                                                <button className="btn btn-danger btn-sm" onClick={() => handleDeleteShowtime(showtime._id)} disabled={loading}>Usuń</button>
-                                            </span>
-                                        </div>
-                                    ))}
+                                    {showtimes.map(showtime => {
+                                        const movie = movies.find(m => m._id === showtime.movieId);
+                                        const hall = halls.find(h => h._id === showtime.hallId);
+                                        const formattedDate = new Date(showtime.date).toLocaleDateString('pl-PL');
+                                        const occupancyRate = Math.round((showtime.soldTickets / showtime.totalSeats) * 100) || 0;
+                                        
+                                        return (
+                                            <div key={showtime._id} className="table-row">
+                                                <span className="showtime-movie">
+                                                    {movie?.title || showtime.movieTitle || '—'}
+                                                    {movie?.poster && (
+                                                        <img src={movie.poster} alt={movie.title} className="showtime-poster" />
+                                                    )}
+                                                </span>
+                                                <span>{hall?.name || showtime.hall || '—'}</span>
+                                                <span>{formattedDate}</span>
+                                                <span>{showtime.time}</span>
+                                                <span>{showtime.price} zł</span>
+                                                <span>
+                                                    <div className="occupancy-mini">
+                                                        <div 
+                                                            className="occupancy-mini-fill" 
+                                                            style={{width: `${occupancyRate}%`}}
+                                                        />
+                                                        <span className="occupancy-text">
+                                                            {showtime.soldTickets}/{showtime.totalSeats}
+                                                        </span>
+                                                    </div>
+                                                </span>
+                                                <span>
+                                                    <div className="showtime-actions">
+                                                        <button 
+                                                            className="btn btn-primary btn-sm" 
+                                                            onClick={() => navigate(`/movies/${movie?._id}`)}
+                                                        >
+                                                            Szczegóły
+                                                        </button>
+                                                        <button 
+                                                            className="btn btn-danger btn-sm" 
+                                                            onClick={() => handleDeleteShowtime(showtime._id)} 
+                                                            disabled={loading}
+                                                        >
+                                                            Usuń
+                                                        </button>
+                                                    </div>
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>
@@ -676,17 +880,17 @@ const AdminPage = () => {
                                     {bookings.map(booking => {
                                         const status = getStatusBadge(booking.status);
                                         return (
-                                            <div key={booking.id} className="table-row">
-                                                <span>#{booking.id}</span>
+                                            <div key={booking._id} className="table-row">
+                                                <span>#{booking._id}</span>
                                                 <span>
                                                     <div className="customer-info">
-                                                        <div>{booking.customerName}</div>
-                                                        <div className="customer-email">{booking.customerEmail}</div>
+                                                        <div>{booking.customerName || '-'}</div>
+                                                        <div className="customer-email">{booking.customerEmail || '-'}</div>
                                                     </div>
                                                 </span>
-                                                <span>{booking.movieTitle}</span>
+                                                <span>{booking.movieTitle || '-'}</span>
                                                 <span>{booking.date} {booking.time}</span>
-                                                <span>{booking.seats.join(', ')}</span>
+                                                <span>{Array.isArray(booking.seats) ? booking.seats.join(', ') : '-'}</span>
                                                 <span>{booking.total} zł</span>
                                                 <span>
                                                     <span className={`status-badge ${status.class}`}>
@@ -698,7 +902,7 @@ const AdminPage = () => {
                                                         {booking.status === 'confirmed' && (
                                                             <button
                                                                 className="btn btn-warning btn-sm"
-                                                                onClick={() => handleUpdateBookingStatus(booking.id, 'cancelled')}
+                                                                onClick={() => handleUpdateBookingStatus(booking._id, 'cancelled')}
                                                                 disabled={loading}
                                                             >
                                                                 Anuluj
@@ -707,7 +911,7 @@ const AdminPage = () => {
                                                         {booking.status === 'cancelled' && (
                                                             <button
                                                                 className="btn btn-success btn-sm"
-                                                                onClick={() => handleUpdateBookingStatus(booking.id, 'confirmed')}
+                                                                onClick={() => handleUpdateBookingStatus(booking._id, 'confirmed')}
                                                                 disabled={loading}
                                                             >
                                                                 Przywróć
@@ -762,20 +966,20 @@ const AdminPage = () => {
                                             staff: { text: 'Pracownik', class: 'role-staff' },
                                             customer: { text: 'Klient', class: 'role-customer' }
                                         };
-                                        const roleInfo = roleMap[user.role];
+                                        const roleInfo = roleMap[user.role] || { text: user.role, class: '' };
 
                                         return (
-                                            <div key={user.id} className="table-row">
-                                                <span>#{user.id}</span>
-                                                <span>{user.name}</span>
-                                                <span>{user.email}</span>
+                                            <div key={user._id} className="table-row">
+                                                <span>#{user._id}</span>
+                                                <span>{user.name || '-'}</span>
+                                                <span>{user.email || '-'}</span>
                                                 <span>
                                                     <span className={`role-badge ${roleInfo.class}`}>
                                                         {roleInfo.text}
                                                     </span>
                                                 </span>
-                                                <span>{user.joinDate}</span>
-                                                <span>{user.lastLogin}</span>
+                                                <span>{user.joinDate || '-'}</span>
+                                                <span>{user.lastLogin || '-'}</span>
                                                 <span>
                                                     <span className="status-badge status-active">Aktywny</span>
                                                 </span>
@@ -879,6 +1083,88 @@ const AdminPage = () => {
                                         </div>
                                     </div>
                                 ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Pracownicy */}
+                    {activeTab === 'staff' && (
+                        <div className="staff-section">
+                            <div className="section-header">
+                                <h2>Zarządzanie Pracownikami</h2>
+                            </div>
+                            <div className="add-staff-form">
+                                <h3>Dodaj nowego pracownika</h3>
+                                <form onSubmit={handleAddStaff}>
+                                    <div className="form-grid">
+                                        <div className="form-group">
+                                            <label>Imię i nazwisko</label>
+                                            <input
+                                                type="text"
+                                                value={newStaff.name}
+                                                onChange={(e) => setNewStaff({...newStaff, name: e.target.value})}
+                                                required
+                                                className="form-input"
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Email</label>
+                                            <input
+                                                type="email"
+                                                value={newStaff.email}
+                                                onChange={(e) => setNewStaff({...newStaff, email: e.target.value})}
+                                                required
+                                                className="form-input"
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Hasło</label>
+                                            <input
+                                                type="password"
+                                                value={newStaff.password}
+                                                onChange={(e) => setNewStaff({...newStaff, password: e.target.value})}
+                                                required
+                                                className="form-input"
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Telefon</label>
+                                            <input
+                                                type="tel"
+                                                value={newStaff.phone}
+                                                onChange={(e) => setNewStaff({...newStaff, phone: e.target.value})}
+                                                className="form-input"
+                                            />
+                                        </div>
+                                    </div>
+                                    <button type="submit" className="btn btn-primary" disabled={loading}>
+                                        {loading ? 'Dodawanie...' : 'Dodaj pracownika'}
+                                    </button>
+                                </form>
+                            </div>
+                            
+                            <div className="staff-list">
+                                <h3>Lista pracowników</h3>
+                                <div className="staff-table">
+                                    {users.filter(u => u.role === 'staff').map(staff => (
+                                        <div key={staff._id} className="staff-row">
+                                            <div className="staff-info">
+                                                <h4>{staff.name}</h4>
+                                                <p>{staff.email}</p>
+                                                <p>{staff.phone || 'Brak telefonu'}</p>
+                                            </div>
+                                            <div className="staff-actions">
+                                                <button
+                                                    className="btn btn-danger btn-sm"
+                                                    onClick={() => handleDeleteUser(staff._id)}
+                                                    disabled={loading}
+                                                >
+                                                    Usuń
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     )}

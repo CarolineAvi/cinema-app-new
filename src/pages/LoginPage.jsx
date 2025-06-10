@@ -36,9 +36,11 @@ const LoginPage = () => {
 
         try {
             if (isLogin) {
-                // Logowanie
-                await login(formData.email, formData.password);
-                navigate(from, { replace: true });
+                const userData = await login(formData.email, formData.password);
+                // Redirect based on role
+                if (userData.role === 'admin') navigate('/admin');
+                else if (userData.role === 'staff') navigate('/staff');
+                else navigate('/');
             } else {
                 // Rejestracja
                 if (formData.password !== formData.confirmPassword) {

@@ -86,7 +86,10 @@ const ProfilePage = () => {
         try {
             const res = await fetch(`http://localhost:5000/api/users/${user._id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(user.token ? { 'Authorization': `Bearer ${user.token}` } : {})
+                },
                 body: JSON.stringify(profileData)
             });
             if (!res.ok) throw new Error('Błąd podczas zapisywania profilu.');

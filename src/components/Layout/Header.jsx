@@ -20,7 +20,9 @@ const Header = () => {
                 </Link>
 
                 <nav className="nav">
-                    <Link to="/" className="nav-link">Strona Główna</Link>
+                    {(!user || user.role === 'customer') && (
+                        <Link to="/" className="nav-link">Strona Główna</Link>
+                    )}
 
                     {user ? (
                         <>

@@ -20,11 +20,38 @@ const BookingPage = () => {
     const [bookingResult, setBookingResult] = useState(null);
 
     useEffect(() => {
-        // Fetch showtime data from backend
-        fetch(`http://localhost:5000/api/showtimes/${showtimeId}`)
-            .then(res => res.json())
-            .then(data => setShowtime(data))
-            .catch(() => navigate('/'));
+        const loadShowtime = async () => {
+            try {
+                // Load showtime details
+                const [showtimeRes, seatsRes] = await Promise.all([
+                    fetch(`http://localhost:5000/api/showtimes/${showtimeId}`),
+                    fetch(`http://localhost:5000/api/showtimes/${showtimeId}/seats`)
+                ]);
+
+                if (!showtimeRes.ok || !seatsRes.ok) {
+                    throw new Error('Błąd podczas ładowania danych seansu');
+                }
+
+                const showtimeData = await showtimeRes.json();
+                const seatsData = await seatsRes.json();
+
+                setShowtime({
+                    ...showtimeData,
+                    hallLayout: {
+                        ...seatsData.hallLayout,
+                        occupiedSeats: seatsData.occupiedSeats,
+                        disabledSeats: [] // You can add logic for disabled seats if needed
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading showtime:', error);
+                navigate('/');
+            }
+        };
+
+        if (showtimeId) {
+            loadShowtime();
+        }
     }, [showtimeId, navigate]);
 
     const getSeatId = (row, seatNumber) => {
@@ -81,35 +108,41 @@ const BookingPage = () => {
     const handleBooking = async () => {
         setLoading(true);
         try {
-            const bookingPayload = {
-                movieId: showtime.movieId || showtime._id,
-                movieTitle: showtime.movieTitle,
-                showtimeId: showtime._id,
-                date: showtime.date,
-                time: showtime.time,
-                hall: showtime.hall,
-                seats: selectedSeats,
-                total: calculateTotal(),
-                customerId: user?._id,
-                customerName: customerData.name,
-                customerEmail: customerData.email,
-                bookingDate: new Date().toISOString().split('T')[0],
-                paymentMethod: 'card',
-                isWalkIn: false,
-                soldBy: '',
-                poster: showtime.poster
-            };
             const res = await fetch('http://localhost:5000/api/bookings', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(bookingPayload)
+                headers: { 
+                    'Content-Type': 'application/json',
+                    ...(user?.token ? { 'Authorization': `Bearer ${user.token}` } : {})
+                },
+                body: JSON.stringify({
+                    movieId: showtime.movieId,
+                    movieTitle: showtime.movieTitle,
+                    showtimeId: showtime._id,
+                    date: showtime.date,
+                    time: showtime.time,
+                    hall: showtime.hall,
+                    seats: selectedSeats,
+                    total: calculateTotal(),
+                    customerId: user?._id,
+                    customerName: customerData.name,
+                    customerEmail: customerData.email,
+                    bookingDate: new Date().toISOString().split('T')[0],
+                    paymentMethod: 'card',
+                    status: 'confirmed',
+                    poster: showtime.movieId?.poster || ''
+                })
             });
-            if (!res.ok) throw new Error('Błąd podczas rezerwacji.');
+
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.message || 'Błąd podczas rezerwacji');
+            }
+
             const booking = await res.json();
             setBookingResult(booking);
             setStep(4);
         } catch (error) {
-            alert('Wystąpił błąd podczas rezerwacji. Spróbuj ponownie.');
+            alert(error.message || 'Wystąpił błąd podczas rezerwacji. Spróbuj ponownie.');
         } finally {
             setLoading(false);
         }

@@ -8,7 +8,7 @@ const StaffPage = () => {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('sales');
     const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState('');
+    const [message, setMessage] = useState(null);
 
     // State dla różnych sekcji
     const [todayShowtimes, setTodayShowtimes] = useState([]);
@@ -22,7 +22,14 @@ const StaffPage = () => {
             phone: ''
         }
     });
-    const [salesStats, setSalesStats] = useState({});
+    const [salesStats, setSalesStats] = useState({
+        totalRevenue: 0,
+        cashSales: 0,
+        onlineSales: 0,
+        totalTickets: 0,
+        walkInCustomers: 0,
+        onlineBookings: 0
+    });
 
     useEffect(() => {
         if (!user || user.role !== 'staff') {
@@ -38,12 +45,16 @@ const StaffPage = () => {
         fetch('http://localhost:5000/api/bookings/today')
             .then(res => res.json())
             .then(setTodayBookings);
-        // Optionally, fetch sales stats from backend if available
+
+        // Fetch sales stats if available (optional)
+        fetch('http://localhost:5000/api/bookings/stats/today')
+            .then(res => res.ok ? res.json() : {})
+            .then(data => setSalesStats(data || {}));
     }, [user, navigate]);
 
     const showMessage = (text, type = 'success') => {
         setMessage({ text, type });
-        setTimeout(() => setMessage(''), 3000);
+        setTimeout(() => setMessage(null), 3000);
     };
 
     // Funkcje sprzedaży bezpośredniej
@@ -52,6 +63,7 @@ const StaffPage = () => {
         setLoading(true);
         try {
             const selectedShowtime = todayShowtimes.find(s => s._id === walkInSale.showtimeId);
+            if (!selectedShowtime) throw new Error('Nie wybrano seansu');
             const totalPrice = walkInSale.seats.length * selectedShowtime.price;
             const newBooking = {
                 showtimeId: walkInSale.showtimeId,
@@ -229,7 +241,7 @@ const StaffPage = () => {
                                             >
                                                 <option value="">Wybierz seans</option>
                                                 {todayShowtimes.filter(s => s.availableSeats > 0).map(showtime => (
-                                                    <option key={showtime.id} value={showtime.id}>
+                                                    <option key={showtime._id} value={showtime._id}>
                                                         {showtime.movieTitle} - {showtime.time} ({showtime.availableSeats} wolnych miejsc)
                                                     </option>
                                                 ))}
@@ -284,7 +296,7 @@ const StaffPage = () => {
                                         <div className="seat-selection">
                                             <label>Wybierz miejsca (maks. 8)</label>
                                             <div className="seat-grid">
-                                                {generateSeatOptions(todayShowtimes.find(s => s.id === parseInt(walkInSale.showtimeId))).slice(0, 20).map(seat => (
+                                                {generateSeatOptions(todayShowtimes.find(s => s._id === walkInSale.showtimeId)).slice(0, 20).map(seat => (
                                                     <label key={seat} className="seat-option">
                                                         <input
                                                             type="checkbox"
@@ -303,7 +315,9 @@ const StaffPage = () => {
                                                                     });
                                                                 }
                                                             }}
-                                                            disabled={!e.target.checked && walkInSale.seats.length >= 8}
+                                                            disabled={
+                                                                (!walkInSale.seats.includes(seat) && walkInSale.seats.length >= 8)
+                                                            }
                                                         />
                                                         <span className="seat-label">{seat}</span>
                                                     </label>
@@ -324,7 +338,11 @@ const StaffPage = () => {
                                             </div>
                                             <div className="summary-item total">
                                                 <span>Do zapłaty:</span>
-                                                <span>{walkInSale.seats.length * (todayShowtimes.find(s => s.id === parseInt(walkInSale.showtimeId))?.price || 0)} zł</span>
+                                                <span>
+                                                    {walkInSale.seats.length *
+                                                        (todayShowtimes.find(s => s._id === walkInSale.showtimeId)?.price || 0)
+                                                    } zł
+                                                </span>
                                             </div>
                                         </div>
                                     )}
@@ -358,9 +376,9 @@ const StaffPage = () => {
                                 {todayBookings.map(booking => {
                                     const status = getStatusBadge(booking.status);
                                     return (
-                                        <div key={booking.id} className="booking-card">
+                                        <div key={booking._id} className="booking-card">
                                             <div className="booking-header">
-                                                <div className="booking-id">#{booking.id}</div>
+                                                <div className="booking-id">#{booking._id}</div>
                                                 <div className={`booking-status ${status.class}`}>
                                                     {status.text}
                                                 </div>
@@ -393,14 +411,14 @@ const StaffPage = () => {
                                                     <>
                                                         <button
                                                             className="btn btn-success btn-sm"
-                                                            onClick={() => handleCheckIn(booking.id)}
+                                                            onClick={() => handleCheckIn(booking._id)}
                                                             disabled={loading}
                                                         >
                                                             ✅ Odprawa
                                                         </button>
                                                         <button
                                                             className="btn btn-danger btn-sm"
-                                                            onClick={() => handleCancelBooking(booking.id)}
+                                                            onClick={() => handleCancelBooking(booking._id)}
                                                             disabled={loading}
                                                         >
                                                             ❌ Anuluj
@@ -428,10 +446,11 @@ const StaffPage = () => {
                             <div className="showtimes-grid">
                                 {todayShowtimes.map(showtime => {
                                     const status = getShowtimeStatus(showtime);
-                                    const occupancy = Math.round(((showtime.totalSeats - showtime.availableSeats) / showtime.totalSeats) * 100);
-
+                                    const occupancy = showtime.totalSeats
+                                        ? Math.round(((showtime.totalSeats - showtime.availableSeats) / showtime.totalSeats) * 100)
+                                        : 0;
                                     return (
-                                        <div key={showtime.id} className="showtime-card">
+                                        <div key={showtime._id} className="showtime-card">
                                             <div className="showtime-header">
                                                 <h3>{showtime.movieTitle}</h3>
                                                 <div className={`showtime-status ${status.class}`}>
@@ -464,7 +483,7 @@ const StaffPage = () => {
                                                     className="btn btn-primary btn-sm"
                                                     onClick={() => {
                                                         setActiveTab('sales');
-                                                        setWalkInSale({...walkInSale, showtimeId: showtime.id.toString()});
+                                                        setWalkInSale({...walkInSale, showtimeId: showtime._id});
                                                     }}
                                                 >
                                                     Sprzedaj bilety
@@ -485,36 +504,41 @@ const StaffPage = () => {
                             <div className="stats-grid">
                                 <div className="stat-card revenue">
                                     <div className="stat-icon">💰</div>
-                                    <div className="stat-value">{salesStats.totalRevenue?.toLocaleString('pl-PL')} zł</div>
+                                    <div className="stat-value">{(salesStats.totalRevenue || 0).toLocaleString('pl-PL')} zł</div>
                                     <div className="stat-label">Łączny przychód</div>
                                     <div className="stat-breakdown">
-                                        <span>💵 Gotówka: {salesStats.cashSales} zł</span>
-                                        <span>💳 Online: {salesStats.onlineSales} zł</span>
+                                        <span>💵 Gotówka: {salesStats.cashSales || 0} zł</span>
+                                        <span>💳 Online: {salesStats.onlineSales || 0} zł</span>
                                     </div>
                                 </div>
 
                                 <div className="stat-card tickets">
                                     <div className="stat-icon">🎟️</div>
-                                    <div className="stat-value">{salesStats.totalTickets}</div>
+                                    <div className="stat-value">{salesStats.totalTickets || 0}</div>
                                     <div className="stat-label">Sprzedane bilety</div>
                                     <div className="stat-breakdown">
-                                        <span>🏪 Kasa: {salesStats.walkInCustomers}</span>
-                                        <span>🌐 Online: {salesStats.onlineBookings}</span>
+                                        <span>🏪 Kasa: {salesStats.walkInCustomers || 0}</span>
+                                        <span>🌐 Online: {salesStats.onlineBookings || 0}</span>
                                     </div>
                                 </div>
 
                                 <div className="stat-card customers">
                                     <div className="stat-icon">👥</div>
-                                    <div className="stat-value">{salesStats.walkInCustomers + salesStats.onlineBookings}</div>
+                                    <div className="stat-value">{(salesStats.walkInCustomers || 0) + (salesStats.onlineBookings || 0)}</div>
                                     <div className="stat-label">Liczba klientów</div>
                                     <div className="stat-breakdown">
-                                        <span>Średnia: {((salesStats.totalRevenue || 0) / ((salesStats.walkInCustomers || 0) + (salesStats.onlineBookings || 0)) || 0).toFixed(0)} zł/os.</span>
+                                        <span>Średnia: {((salesStats.totalRevenue || 0) / (((salesStats.walkInCustomers || 0) + (salesStats.onlineBookings || 0)) || 1)).toFixed(0)} zł/os.</span>
                                     </div>
                                 </div>
 
                                 <div className="stat-card performance">
                                     <div className="stat-icon">📈</div>
-                                    <div className="stat-value">{Math.round((salesStats.totalTickets / (todayShowtimes.reduce((sum, s) => sum + s.totalSeats, 0)) || 0) * 100)}%</div>
+                                    <div className="stat-value">
+                                        {todayShowtimes.length > 0
+                                            ? Math.round(((salesStats.totalTickets || 0) / (todayShowtimes.reduce((sum, s) => sum + (s.totalSeats || 0), 0) || 1)) * 100)
+                                            : 0
+                                        }%
+                                    </div>
                                     <div className="stat-label">Wypełnienie sal</div>
                                     <div className="stat-breakdown">
                                         <span>Cel dzienny: 75%</span>
