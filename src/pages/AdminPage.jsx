@@ -38,103 +38,61 @@ const AdminPage = () => {
         price: ''
     });
 
-    // Mock dane
-    const mockMovies = [
-        {
-            id: 1,
-            title: "Avengers: Endgame",
-            duration: 181,
-            description: "Epickie zakończenie sagi Avengers. Superbohaterowie muszą cofnąć się w czasie, aby powstrzymać Thanosa.",
-            genre: "Akcja, Sci-Fi",
-            year: 2019,
-            director: "Anthony Russo, Joe Russo",
-            rating: 8.4,
-            poster: "https://via.placeholder.com/300x450/1a1a2e/ffd700?text=Avengers",
-            status: 'active'
-        },
-        {
-            id: 2,
-            title: "Dune",
-            duration: 155,
-            description: "Adaptacja kultowej powieści sci-fi o młodym Paula Atreides i jego przeznaczeniu na planecie Arrakis.",
-            genre: "Sci-Fi, Dramat",
-            year: 2021,
-            director: "Denis Villeneuve",
-            rating: 8.0,
-            poster: "https://via.placeholder.com/300x450/2c3e50/ffd700?text=Dune",
-            status: 'active'
-        },
-        {
-            id: 3,
-            title: "Spider-Man: No Way Home",
-            duration: 148,
-            description: "Peter Parker staje się celem wszystkich, gdy jego tożsamość zostaje ujawniona.",
-            genre: "Akcja, Przygoda",
-            year: 2021,
-            director: "Jon Watts",
-            rating: 8.2,
-            poster: "https://via.placeholder.com/300x450/c0392b/ffd700?text=Spider-Man",
-            status: 'active'
-        }
-    ];
-
-    const mockShowtimes = [
-        { id: 1, movieId: 1, movieTitle: "Avengers: Endgame", date: "2024-01-15", time: "18:00", hallId: 1, hallName: "Sala 1", price: 25, soldTickets: 45, totalSeats: 120 },
-        { id: 2, movieId: 1, movieTitle: "Avengers: Endgame", date: "2024-01-15", time: "21:00", hallId: 2, hallName: "Sala 2", price: 25, soldTickets: 32, totalSeats: 80 },
-        { id: 3, movieId: 2, movieTitle: "Dune", date: "2024-01-16", time: "17:00", hallId: 3, hallName: "Sala 3", price: 28, soldTickets: 67, totalSeats: 126 },
-        { id: 4, movieId: 3, movieTitle: "Spider-Man: No Way Home", date: "2024-01-16", time: "19:45", hallId: 1, hallName: "Sala 1", price: 26, soldTickets: 89, totalSeats: 120 }
-    ];
-
-    const mockBookings = [
-        { id: 1001, customerName: "Jan Kowalski", customerEmail: "jan@example.com", movieTitle: "Avengers: Endgame", date: "2024-01-15", time: "18:00", seats: ["F5", "F6"], total: 50, status: "confirmed", bookingDate: "2024-01-10" },
-        { id: 1002, customerName: "Anna Nowak", customerEmail: "anna@example.com", movieTitle: "Dune", date: "2024-01-16", time: "17:00", seats: ["G7"], total: 28, status: "confirmed", bookingDate: "2024-01-12" },
-        { id: 1003, customerName: "Piotr Wiśniewski", customerEmail: "piotr@example.com", movieTitle: "Spider-Man: No Way Home", date: "2024-01-16", time: "19:45", seats: ["A1", "A2"], total: 52, status: "cancelled", bookingDate: "2024-01-11" }
-    ];
-
-    const mockUsers = [
-        { id: 1, name: "Administrator", email: "admin@cinema.com", role: "admin", accessLevel: 1, joinDate: "2023-01-01", lastLogin: "2024-01-15" },
-        { id: 2, name: "Pracownik Kasy", email: "staff@cinema.com", role: "staff", accessLevel: 2, joinDate: "2023-06-15", lastLogin: "2024-01-14" },
-        { id: 3, name: "Jan Kowalski", email: "user@cinema.com", role: "customer", accessLevel: 3, joinDate: "2023-12-01", lastLogin: "2024-01-13" }
-    ];
-
-    const mockHalls = [
-        { id: 1, name: "Sala 1", rows: 10, seatsPerRow: 12, totalSeats: 120, technology: "4K Digital", sound: "Dolby Atmos", status: "active" },
-        { id: 2, name: "Sala 2", rows: 8, seatsPerRow: 10, totalSeats: 80, technology: "4K Digital", sound: "DTS", status: "active" },
-        { id: 3, name: "Sala 3", rows: 9, seatsPerRow: 14, totalSeats: 126, technology: "IMAX", sound: "IMAX Enhanced", status: "maintenance" }
-    ];
+    // State for new hall
+    const [newHall, setNewHall] = useState({
+        name: '',
+        capacity: '',
+        rows: '',
+        seatsPerRow: '',
+        status: 'active'
+    });
+    const [editingHall, setEditingHall] = useState(null);
 
     useEffect(() => {
         // Sprawdź uprawnienia
-        if (!user || user.accessLevel > 2) {
+        if (!user || user.role !== 'admin') {
             navigate('/');
             return;
         }
 
         // Załaduj dane
-        setMovies(mockMovies);
-        setShowtimes(mockShowtimes);
-        setBookings(mockBookings);
-        setUsers(mockUsers);
-        setHalls(mockHalls);
+        fetch('http://localhost:5000/api/movies')
+            .then(res => res.json())
+            .then(setMovies);
+        fetch('http://localhost:5000/api/showtimes')
+            .then(res => res.json())
+            .then(setShowtimes);
+        fetch('http://localhost:5000/api/bookings')
+            .then(res => res.json())
+            .then(setBookings);
+        fetch('http://localhost:5000/api/users')
+            .then(res => res.json())
+            .then(setUsers);
+        fetch('http://localhost:5000/api/halls')
+            .then(res => res.json())
+            .then(setHalls);
+    }, [user, navigate]);
 
-        // Oblicz statystyki
+    useEffect(() => {
+        // Oblicz statystyki tylko gdy dane są załadowane
+        if (!movies.length || !bookings.length || !showtimes.length || !users.length) return;
         const today = new Date().toISOString().split('T')[0];
-        const totalRevenue = mockBookings
+        const totalRevenue = bookings
             .filter(b => b.status === 'confirmed')
             .reduce((sum, b) => sum + b.total, 0);
 
-        const todayBookings = mockBookings.filter(b => b.bookingDate === today);
+        const todayBookings = bookings.filter(b => b.bookingDate === today);
 
         setStats({
-            totalMovies: mockMovies.length,
-            totalBookings: mockBookings.filter(b => b.status === 'confirmed').length,
+            totalMovies: movies.length,
+            totalBookings: bookings.filter(b => b.status === 'confirmed').length,
             totalRevenue,
             todayBookings: todayBookings.length,
             todayRevenue: todayBookings.reduce((sum, b) => sum + b.total, 0),
-            activeUsers: mockUsers.filter(u => u.role === 'customer').length,
-            occupancyRate: Math.round((mockShowtimes.reduce((sum, s) => sum + s.soldTickets, 0) / mockShowtimes.reduce((sum, s) => sum + s.totalSeats, 0)) * 100)
+            activeUsers: users.filter(u => u.role === 'customer').length,
+            occupancyRate: showtimes.reduce((sum, s) => sum + s.totalSeats, 0) > 0 ? Math.round((showtimes.reduce((sum, s) => sum + s.soldTickets, 0) / showtimes.reduce((sum, s) => sum + s.totalSeats, 0)) * 100) : 0
         });
-    }, [user, navigate]);
+    }, [movies, bookings, showtimes, users]);
 
     const showMessage = (text, type = 'success') => {
         setMessage({ text, type });
@@ -145,16 +103,14 @@ const AdminPage = () => {
     const handleAddMovie = async (e) => {
         e.preventDefault();
         setLoading(true);
-
         try {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            const movie = {
-                ...newMovie,
-                id: Date.now(),
-                status: 'active'
-            };
-
+            const res = await fetch('http://localhost:5000/api/movies', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newMovie)
+            });
+            if (!res.ok) throw new Error('Błąd podczas dodawania filmu');
+            const movie = await res.json();
             setMovies([...movies, movie]);
             setNewMovie({
                 title: '', duration: '', description: '', genre: '', year: '', director: '', rating: '', poster: ''
@@ -169,11 +125,13 @@ const AdminPage = () => {
 
     const handleDeleteMovie = async (movieId) => {
         if (!window.confirm('Czy na pewno chcesz usunąć ten film?')) return;
-
         setLoading(true);
         try {
-            await new Promise(resolve => setTimeout(resolve, 500));
-            setMovies(movies.filter(m => m.id !== movieId));
+            const res = await fetch(`http://localhost:5000/api/movies/${movieId}`, {
+                method: 'DELETE'
+            });
+            if (!res.ok) throw new Error('Błąd podczas usuwania filmu');
+            setMovies(movies.filter(m => m._id !== movieId));
             showMessage('Film został usunięty.');
         } catch (error) {
             showMessage('Wystąpił błąd podczas usuwania filmu.', 'error');
@@ -186,22 +144,19 @@ const AdminPage = () => {
     const handleAddShowtime = async (e) => {
         e.preventDefault();
         setLoading(true);
-
         try {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            const selectedMovie = movies.find(m => m.id === parseInt(newShowtime.movieId));
-            const selectedHall = halls.find(h => h.id === parseInt(newShowtime.hallId));
-
-            const showtime = {
-                ...newShowtime,
-                id: Date.now(),
-                movieTitle: selectedMovie?.title,
-                hallName: selectedHall?.name,
-                soldTickets: 0,
-                totalSeats: selectedHall?.totalSeats || 0
-            };
-
+            const res = await fetch('http://localhost:5000/api/showtimes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...newShowtime,
+                    movieId: newShowtime.movieId,
+                    hallId: newShowtime.hallId,
+                    price: parseInt(newShowtime.price)
+                })
+            });
+            if (!res.ok) throw new Error('Błąd podczas dodawania seansu');
+            const showtime = await res.json();
             setShowtimes([...showtimes, showtime]);
             setNewShowtime({ movieId: '', date: '', time: '', hallId: '', price: '' });
             showMessage('Seans został dodany pomyślnie!');
@@ -214,11 +169,13 @@ const AdminPage = () => {
 
     const handleDeleteShowtime = async (showtimeId) => {
         if (!window.confirm('Czy na pewno chcesz usunąć ten seans?')) return;
-
         setLoading(true);
         try {
-            await new Promise(resolve => setTimeout(resolve, 500));
-            setShowtimes(showtimes.filter(s => s.id !== showtimeId));
+            const res = await fetch(`http://localhost:5000/api/showtimes/${showtimeId}`, {
+                method: 'DELETE'
+            });
+            if (!res.ok) throw new Error('Błąd podczas usuwania seansu');
+            setShowtimes(showtimes.filter(s => s._id !== showtimeId));
             showMessage('Seans został usunięty.');
         } catch (error) {
             showMessage('Wystąpił błąd podczas usuwania seansu.', 'error');
@@ -231,10 +188,14 @@ const AdminPage = () => {
     const handleUpdateBookingStatus = async (bookingId, newStatus) => {
         setLoading(true);
         try {
-            await new Promise(resolve => setTimeout(resolve, 500));
-            setBookings(bookings.map(b =>
-                b.id === bookingId ? { ...b, status: newStatus } : b
-            ));
+            const res = await fetch(`http://localhost:5000/api/bookings/${bookingId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus })
+            });
+            if (!res.ok) throw new Error('Błąd podczas zmiany statusu rezerwacji');
+            const updated = await res.json();
+            setBookings(bookings.map(b => b._id === bookingId ? updated : b));
             showMessage(`Status rezerwacji został zmieniony na "${newStatus}".`);
         } catch (error) {
             showMessage('Wystąpił błąd podczas zmiany statusu.', 'error');
@@ -252,7 +213,88 @@ const AdminPage = () => {
         return statusMap[status] || { text: 'Nieznany', class: 'status-unknown' };
     };
 
-    if (!user || user.accessLevel > 2) {
+    // Hall CRUD handlers
+    const handleAddHall = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            const res = await fetch('http://localhost:5000/api/halls', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user.token}` },
+                body: JSON.stringify({
+                    name: newHall.name,
+                    capacity: parseInt(newHall.capacity),
+                    status: newHall.status,
+                    seatingLayout: {
+                        rows: parseInt(newHall.rows),
+                        seatsPerRow: parseInt(newHall.seatsPerRow)
+                    }
+                })
+            });
+            if (!res.ok) throw new Error('Błąd podczas dodawania sali');
+            const hall = await res.json();
+            setHalls([...halls, hall]);
+            setNewHall({ name: '', capacity: '', rows: '', seatsPerRow: '', status: 'active' });
+            showMessage('Sala została dodana!');
+        } catch (error) {
+            showMessage('Wystąpił błąd podczas dodawania sali.', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDeleteHall = async (hallId) => {
+        if (!window.confirm('Czy na pewno chcesz usunąć tę salę?')) return;
+        setLoading(true);
+        try {
+            const res = await fetch(`http://localhost:5000/api/halls/${hallId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${user.token}` }
+            });
+            if (!res.ok) throw new Error('Błąd podczas usuwania sali');
+            setHalls(halls.filter(h => h._id !== hallId));
+            showMessage('Sala została usunięta.');
+        } catch (error) {
+            showMessage('Wystąpił błąd podczas usuwania sali.', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleEditHall = (hall) => {
+        setEditingHall(hall);
+    };
+
+    const handleUpdateHall = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            const res = await fetch(`http://localhost:5000/api/halls/${editingHall._id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user.token}` },
+                body: JSON.stringify({
+                    name: editingHall.name,
+                    capacity: parseInt(editingHall.capacity),
+                    status: editingHall.status,
+                    seatingLayout: {
+                        rows: parseInt(editingHall.seatingLayout.rows),
+                        seatsPerRow: parseInt(editingHall.seatingLayout.seatsPerRow)
+                    }
+                })
+            });
+            if (!res.ok) throw new Error('Błąd podczas edycji sali');
+            const updated = await res.json();
+            setHalls(halls.map(h => h._id === updated._id ? updated : h));
+            setEditingHall(null);
+            showMessage('Sala została zaktualizowana!');
+        } catch (error) {
+            showMessage('Wystąpił błąd podczas edycji sali.', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (!user || user.role !== 'admin') {
         return null;
     }
 
@@ -499,7 +541,7 @@ const AdminPage = () => {
                                 <h3>Lista filmów ({movies.length})</h3>
                                 <div className="movies-table">
                                     {movies.map(movie => (
-                                        <div key={movie.id} className="movie-row">
+                                        <div key={movie._id} className="movie-row">
                                             <div className="movie-poster">
                                                 <img src={movie.poster} alt={movie.title} />
                                             </div>
@@ -512,7 +554,7 @@ const AdminPage = () => {
                                             <div className="movie-actions">
                                                 <button
                                                     className="btn btn-danger btn-sm"
-                                                    onClick={() => handleDeleteMovie(movie.id)}
+                                                    onClick={() => handleDeleteMovie(movie._id)}
                                                     disabled={loading}
                                                 >
                                                     Usuń
@@ -531,119 +573,67 @@ const AdminPage = () => {
                             <div className="section-header">
                                 <h2>Zarządzanie seansami</h2>
                             </div>
-
                             <div className="add-showtime-form">
                                 <h3>Dodaj nowy seans</h3>
                                 <form onSubmit={handleAddShowtime}>
                                     <div className="form-grid">
                                         <div className="form-group">
                                             <label>Film</label>
-                                            <select
-                                                value={newShowtime.movieId}
-                                                onChange={(e) => setNewShowtime({...newShowtime, movieId: e.target.value})}
-                                                required
-                                                className="form-select"
-                                            >
+                                            <select value={newShowtime.movieId} onChange={e => setNewShowtime({...newShowtime, movieId: e.target.value})} required className="form-select">
                                                 <option value="">Wybierz film</option>
                                                 {movies.map(movie => (
-                                                    <option key={movie.id} value={movie.id}>
-                                                        {movie.title}
-                                                    </option>
+                                                    <option key={movie._id} value={movie._id}>{movie.title}</option>
                                                 ))}
                                             </select>
                                         </div>
                                         <div className="form-group">
                                             <label>Sala</label>
-                                            <select
-                                                value={newShowtime.hallId}
-                                                onChange={(e) => setNewShowtime({...newShowtime, hallId: e.target.value})}
-                                                required
-                                                className="form-select"
-                                            >
+                                            <select value={newShowtime.hallId} onChange={e => setNewShowtime({...newShowtime, hallId: e.target.value})} required className="form-select">
                                                 <option value="">Wybierz salę</option>
-                                                {halls.filter(h => h.status === 'active').map(hall => (
-                                                    <option key={hall.id} value={hall.id}>
-                                                        {hall.name} ({hall.totalSeats} miejsc)
-                                                    </option>
+                                                {halls.map(hall => (
+                                                    <option key={hall._id} value={hall._id}>{hall.name}</option>
                                                 ))}
                                             </select>
                                         </div>
                                         <div className="form-group">
                                             <label>Data</label>
-                                            <input
-                                                type="date"
-                                                value={newShowtime.date}
-                                                onChange={(e) => setNewShowtime({...newShowtime, date: e.target.value})}
-                                                required
-                                                className="form-input"
-                                            />
+                                            <input type="date" value={newShowtime.date} onChange={e => setNewShowtime({...newShowtime, date: e.target.value})} required className="form-input" />
                                         </div>
                                         <div className="form-group">
                                             <label>Godzina</label>
-                                            <input
-                                                type="time"
-                                                value={newShowtime.time}
-                                                onChange={(e) => setNewShowtime({...newShowtime, time: e.target.value})}
-                                                required
-                                                className="form-input"
-                                            />
+                                            <input type="time" value={newShowtime.time} onChange={e => setNewShowtime({...newShowtime, time: e.target.value})} required className="form-input" />
                                         </div>
                                         <div className="form-group">
-                                            <label>Cena biletu (zł)</label>
-                                            <input
-                                                type="number"
-                                                value={newShowtime.price}
-                                                onChange={(e) => setNewShowtime({...newShowtime, price: parseInt(e.target.value)})}
-                                                required
-                                                className="form-input"
-                                            />
+                                            <label>Cena biletu</label>
+                                            <input type="number" value={newShowtime.price} onChange={e => setNewShowtime({...newShowtime, price: e.target.value})} required className="form-input" />
                                         </div>
                                     </div>
-                                    <button type="submit" className="btn btn-primary" disabled={loading}>
-                                        {loading ? 'Dodawanie...' : 'Dodaj seans'}
-                                    </button>
+                                    <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Dodawanie...' : 'Dodaj seans'}</button>
                                 </form>
                             </div>
-
                             <div className="showtimes-list">
-                                <h3>Lista seansów ({showtimes.length})</h3>
+                                <h3>Lista seansów</h3>
                                 <div className="showtimes-table">
                                     <div className="table-header">
                                         <span>Film</span>
-                                        <span>Data/Godzina</span>
                                         <span>Sala</span>
+                                        <span>Data</span>
+                                        <span>Godzina</span>
                                         <span>Cena</span>
-                                        <span>Sprzedane/Wszystkie</span>
-                                        <span>Wypełnienie</span>
                                         <span>Akcje</span>
                                     </div>
-                                    {showtimes.map(showtime => {
-                                        const occupancy = Math.round((showtime.soldTickets / showtime.totalSeats) * 100);
-                                        return (
-                                            <div key={showtime.id} className="table-row">
-                                                <span className="showtime-movie">{showtime.movieTitle}</span>
-                                                <span>{showtime.date} {showtime.time}</span>
-                                                <span>{showtime.hallName}</span>
-                                                <span>{showtime.price} zł</span>
-                                                <span>{showtime.soldTickets}/{showtime.totalSeats}</span>
-                                                <span>
-                                                    <div className="occupancy-mini">
-                                                        <div className="occupancy-mini-fill" style={{width: `${occupancy}%`}}></div>
-                                                        <span className="occupancy-text">{occupancy}%</span>
-                                                    </div>
-                                                </span>
-                                                <span>
-                                                    <button
-                                                        className="btn btn-danger btn-sm"
-                                                        onClick={() => handleDeleteShowtime(showtime.id)}
-                                                        disabled={loading}
-                                                    >
-                                                        Usuń
-                                                    </button>
-                                                </span>
-                                            </div>
-                                        );
-                                    })}
+                                    {showtimes.map(showtime => (
+                                        <div key={showtime._id} className="table-row">
+                                            <span className="showtime-movie">{movies.find(m => m._id === showtime.movieId)?.title || '—'}</span>
+                                            <span>{halls.find(h => h._id === showtime.hallId)?.name || '—'}</span>
+                                            <span>{showtime.date}</span>
+                                            <span>{showtime.time}</span>
+                                            <span>{showtime.price} zł</span>
+                                            <span>
+                                                <button className="btn btn-danger btn-sm" onClick={() => handleDeleteShowtime(showtime._id)} disabled={loading}>Usuń</button>
+                                            </span>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         </div>
@@ -803,33 +793,89 @@ const AdminPage = () => {
                             <div className="section-header">
                                 <h2>Zarządzanie salami</h2>
                             </div>
-
+                            <div className="add-movie-form">
+                                <h3>Dodaj nową salę</h3>
+                                <form onSubmit={handleAddHall}>
+                                    <div className="form-grid">
+                                        <div className="form-group">
+                                            <label>Nazwa sali</label>
+                                            <input type="text" value={newHall.name} onChange={e => setNewHall({...newHall, name: e.target.value})} required className="form-input" />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Pojemność</label>
+                                            <input type="number" value={newHall.capacity} onChange={e => setNewHall({...newHall, capacity: e.target.value})} required className="form-input" />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Liczba rzędów</label>
+                                            <input type="number" value={newHall.rows} onChange={e => setNewHall({...newHall, rows: e.target.value})} required className="form-input" />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Miejsc w rzędzie</label>
+                                            <input type="number" value={newHall.seatsPerRow} onChange={e => setNewHall({...newHall, seatsPerRow: e.target.value})} required className="form-input" />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Status</label>
+                                            <select value={newHall.status} onChange={e => setNewHall({...newHall, status: e.target.value})} className="form-select">
+                                                <option value="active">Aktywna</option>
+                                                <option value="maintenance">Konserwacja</option>
+                                                <option value="inactive">Nieaktywna</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Dodawanie...' : 'Dodaj salę'}</button>
+                                </form>
+                            </div>
+                            {editingHall && (
+                                <div className="add-movie-form">
+                                    <h3>Edytuj salę</h3>
+                                    <form onSubmit={handleUpdateHall}>
+                                        <div className="form-grid">
+                                            <div className="form-group">
+                                                <label>Nazwa sali</label>
+                                                <input type="text" value={editingHall.name} onChange={e => setEditingHall({...editingHall, name: e.target.value})} required className="form-input" />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Pojemność</label>
+                                                <input type="number" value={editingHall.capacity} onChange={e => setEditingHall({...editingHall, capacity: e.target.value})} required className="form-input" />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Liczba rzędów</label>
+                                                <input type="number" value={editingHall.seatingLayout.rows} onChange={e => setEditingHall({...editingHall, seatingLayout: {...editingHall.seatingLayout, rows: e.target.value}})} required className="form-input" />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Miejsc w rzędzie</label>
+                                                <input type="number" value={editingHall.seatingLayout.seatsPerRow} onChange={e => setEditingHall({...editingHall, seatingLayout: {...editingHall.seatingLayout, seatsPerRow: e.target.value}})} required className="form-input" />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Status</label>
+                                                <select value={editingHall.status} onChange={e => setEditingHall({...editingHall, status: e.target.value})} className="form-select">
+                                                    <option value="active">Aktywna</option>
+                                                    <option value="maintenance">Konserwacja</option>
+                                                    <option value="inactive">Nieaktywna</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <button type="submit" className="btn btn-success" disabled={loading}>{loading ? 'Aktualizowanie...' : 'Zapisz zmiany'}</button>
+                                        <button type="button" className="btn btn-secondary" onClick={() => setEditingHall(null)}>Anuluj</button>
+                                    </form>
+                                </div>
+                            )}
                             <div className="halls-grid">
                                 {halls.map(hall => (
-                                    <div key={hall.id} className="hall-card">
+                                    <div key={hall._id} className="hall-card">
                                         <div className="hall-header">
                                             <h3>{hall.name}</h3>
-                                            <span className={`hall-status ${hall.status}`}>
-                                                {hall.status === 'active' ? 'Aktywna' : 'Konserwacja'}
-                                            </span>
+                                            <span className={`hall-status ${hall.status}`}>{hall.status === 'active' ? 'Aktywna' : hall.status === 'maintenance' ? 'Konserwacja' : 'Nieaktywna'}</span>
                                         </div>
                                         <div className="hall-details">
                                             <div className="hall-info">
-                                                <span>💺 {hall.totalSeats} miejsc</span>
-                                                <span>📐 {hall.rows} x {hall.seatsPerRow}</span>
-                                            </div>
-                                            <div className="hall-tech">
-                                                <span>🎥 {hall.technology}</span>
-                                                <span>🔊 {hall.sound}</span>
+                                                <span>💺 {hall.capacity} miejsc</span>
+                                                <span>📐 {hall.seatingLayout?.rows} x {hall.seatingLayout?.seatsPerRow}</span>
                                             </div>
                                         </div>
                                         <div className="hall-actions">
-                                            <button className="btn btn-secondary btn-sm">
-                                                Edytuj
-                                            </button>
-                                            <button className={`btn btn-sm ${hall.status === 'active' ? 'btn-warning' : 'btn-success'}`}>
-                                                {hall.status === 'active' ? 'Konserwacja' : 'Aktywuj'}
-                                            </button>
+                                            <button className="btn btn-secondary btn-sm" onClick={() => handleEditHall(hall)}>Edytuj</button>
+                                            <button className="btn btn-danger btn-sm" onClick={() => handleDeleteHall(hall._id)} disabled={loading}>Usuń</button>
                                         </div>
                                     </div>
                                 ))}

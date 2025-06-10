@@ -19,66 +19,12 @@ const BookingPage = () => {
     const [loading, setLoading] = useState(false);
     const [bookingResult, setBookingResult] = useState(null);
 
-    // Mock dane seansu i sali
-    const mockShowtimes = {
-        1: {
-            id: 1,
-            movieTitle: "Avengers: Endgame",
-            date: "2024-01-15",
-            time: "18:00",
-            hall: "Sala 1",
-            price: 25,
-            poster: "https://via.placeholder.com/300x450/1a1a2e/ffd700?text=Avengers",
-            hallLayout: {
-                rows: 10,
-                seatsPerRow: 12,
-                occupiedSeats: ['A1', 'A2', 'C5', 'D7', 'F10', 'G3', 'H8', 'H9'],
-                vipRows: [7, 8, 9], // Rzędy G, H, I to VIP (+5zł)
-                disabledSeats: ['E6', 'E7'] // Uszkodzone miejsca
-            }
-        },
-        2: {
-            id: 2,
-            movieTitle: "Avengers: Endgame",
-            date: "2024-01-15",
-            time: "21:00",
-            hall: "Sala 2",
-            price: 25,
-            poster: "https://via.placeholder.com/300x450/1a1a2e/ffd700?text=Avengers",
-            hallLayout: {
-                rows: 8,
-                seatsPerRow: 10,
-                occupiedSeats: ['B3', 'B4', 'D6', 'F2', 'F8'],
-                vipRows: [6, 7],
-                disabledSeats: []
-            }
-        },
-        // Dodaj więcej seansów...
-        4: {
-            id: 4,
-            movieTitle: "Dune",
-            date: "2024-01-15",
-            time: "17:00",
-            hall: "Sala 3",
-            price: 28,
-            poster: "https://via.placeholder.com/300x450/2c3e50/ffd700?text=Dune",
-            hallLayout: {
-                rows: 9,
-                seatsPerRow: 14,
-                occupiedSeats: ['A7', 'B8', 'B9', 'E5', 'E6', 'E7'],
-                vipRows: [7, 8],
-                disabledSeats: ['C10']
-            }
-        }
-    };
-
     useEffect(() => {
-        const foundShowtime = mockShowtimes[showtimeId];
-        if (foundShowtime) {
-            setShowtime(foundShowtime);
-        } else {
-            navigate('/');
-        }
+        // Fetch showtime data from backend
+        fetch(`http://localhost:5000/api/showtimes/${showtimeId}`)
+            .then(res => res.json())
+            .then(data => setShowtime(data))
+            .catch(() => navigate('/'));
     }, [showtimeId, navigate]);
 
     const getSeatId = (row, seatNumber) => {
@@ -134,26 +80,34 @@ const BookingPage = () => {
 
     const handleBooking = async () => {
         setLoading(true);
-
         try {
-            // Symulacja API call
-            await new Promise(resolve => setTimeout(resolve, 2000));
-
-            const booking = {
-                id: Date.now(),
+            const bookingPayload = {
+                movieId: showtime.movieId || showtime._id,
                 movieTitle: showtime.movieTitle,
+                showtimeId: showtime._id,
                 date: showtime.date,
                 time: showtime.time,
                 hall: showtime.hall,
                 seats: selectedSeats,
                 total: calculateTotal(),
-                customerData,
-                bookingDate: new Date().toISOString().split('T')[0]
+                customerId: user?._id,
+                customerName: customerData.name,
+                customerEmail: customerData.email,
+                bookingDate: new Date().toISOString().split('T')[0],
+                paymentMethod: 'card',
+                isWalkIn: false,
+                soldBy: '',
+                poster: showtime.poster
             };
-
+            const res = await fetch('http://localhost:5000/api/bookings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(bookingPayload)
+            });
+            if (!res.ok) throw new Error('Błąd podczas rezerwacji.');
+            const booking = await res.json();
             setBookingResult(booking);
             setStep(4);
-
         } catch (error) {
             alert('Wystąpił błąd podczas rezerwacji. Spróbuj ponownie.');
         } finally {

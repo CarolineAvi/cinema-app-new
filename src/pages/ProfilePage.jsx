@@ -23,46 +23,6 @@ const ProfilePage = () => {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
 
-    // Mock dane rezerwacji
-    const mockBookings = [
-        {
-            id: 1,
-            movieTitle: 'Avengers: Endgame',
-            date: '2024-01-15',
-            time: '18:00',
-            hall: 'Sala 1',
-            seats: ['F5', 'F6'],
-            price: 50,
-            status: 'confirmed',
-            bookingDate: '2024-01-10',
-            poster: 'https://via.placeholder.com/100x150/1a1a2e/ffd700?text=Avengers'
-        },
-        {
-            id: 2,
-            movieTitle: 'Dune',
-            date: '2024-01-20',
-            time: '20:00',
-            hall: 'Sala 2',
-            seats: ['G7'],
-            price: 28,
-            status: 'confirmed',
-            bookingDate: '2024-01-12',
-            poster: 'https://via.placeholder.com/100x150/2c3e50/ffd700?text=Dune'
-        },
-        {
-            id: 3,
-            movieTitle: 'Spider-Man: No Way Home',
-            date: '2024-01-08',
-            time: '19:45',
-            hall: 'Sala 3',
-            seats: ['A1', 'A2'],
-            price: 52,
-            status: 'completed',
-            bookingDate: '2024-01-05',
-            poster: 'https://via.placeholder.com/100x150/c0392b/ffd700?text=Spider-Man'
-        }
-    ];
-
     const genreOptions = [
         'Akcja', 'Komedia', 'Dramat', 'Horror', 'Sci-Fi',
         'Fantasy', 'Thriller', 'Romans', 'Animacja', 'Dokumentalny'
@@ -73,8 +33,6 @@ const ProfilePage = () => {
             navigate('/login');
             return;
         }
-
-        // Inicjalizuj dane profilu
         setProfileData({
             name: user.name || '',
             email: user.email || '',
@@ -86,9 +44,9 @@ const ProfilePage = () => {
                 favoriteGenres: user.preferences?.favoriteGenres || []
             }
         });
-
-        // Załaduj rezerwacje
-        setBookings(mockBookings);
+        fetch(`http://localhost:5000/api/bookings/user/${user._id}`)
+            .then(res => res.json())
+            .then(setBookings);
     }, [user, navigate]);
 
     const handleInputChange = (e) => {
@@ -126,13 +84,14 @@ const ProfilePage = () => {
     const handleSaveProfile = async () => {
         setLoading(true);
         try {
-            // Symulacja API call
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            // Zaktualizuj dane w localStorage
-            const updatedUser = { ...user, ...profileData };
+            const res = await fetch(`http://localhost:5000/api/users/${user._id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(profileData)
+            });
+            if (!res.ok) throw new Error('Błąd podczas zapisywania profilu.');
+            const updatedUser = await res.json();
             localStorage.setItem('cinema_user', JSON.stringify(updatedUser));
-
             setEditMode(false);
             setMessage('Profil został zaktualizowany pomyślnie!');
             setTimeout(() => setMessage(''), 3000);
@@ -155,7 +114,7 @@ const ProfilePage = () => {
     const calculateTotalSpent = () => {
         return bookings
             .filter(booking => booking.status !== 'cancelled')
-            .reduce((total, booking) => total + booking.price, 0);
+            .reduce((total, booking) => total + (booking.total || booking.price || 0), 0);
     };
 
     if (!user) {
@@ -339,7 +298,6 @@ const ProfilePage = () => {
                     {activeTab === 'bookings' && (
                         <div className="bookings-section">
                             <h2>Historia rezerwacji</h2>
-
                             {bookings.length === 0 ? (
                                 <div className="empty-state">
                                     <p>Nie masz jeszcze żadnych rezerwacji.</p>
@@ -355,7 +313,7 @@ const ProfilePage = () => {
                                     {bookings.map(booking => {
                                         const status = getStatusBadge(booking.status);
                                         return (
-                                            <div key={booking.id} className="booking-card">
+                                            <div key={booking._id} className="booking-card">
                                                 <div className="booking-poster">
                                                     <img src={booking.poster} alt={booking.movieTitle} />
                                                 </div>
@@ -365,7 +323,7 @@ const ProfilePage = () => {
                                                         <span>📅 {booking.date} o {booking.time}</span>
                                                         <span>🏛️ {booking.hall}</span>
                                                         <span>💺 Miejsca: {booking.seats.join(', ')}</span>
-                                                        <span>💰 {booking.price} zł</span>
+                                                        <span>💰 {booking.total || booking.price} zł</span>
                                                     </div>
                                                     <div className="booking-meta">
                                                         <span className={`status-badge ${status.class}`}>

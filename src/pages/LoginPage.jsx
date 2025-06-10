@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext.jsx';
+import { useAuth } from '../contexts/AuthContext';
 import './LoginPage.css';
 
 const LoginPage = () => {
+    const { login, register } = useAuth();
     const [isLogin, setIsLogin] = useState(true);
     const [formData, setFormData] = useState({
         email: '',
@@ -14,7 +15,6 @@ const LoginPage = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const { login, register } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -56,7 +56,7 @@ const LoginPage = () => {
                 navigate(from, { replace: true });
             }
         } catch (err) {
-            setError(err.message);
+            setError(err.message || 'Błąd logowania');
         } finally {
             setLoading(false);
         }
@@ -83,8 +83,7 @@ const LoginPage = () => {
                         <p>
                             {isLogin
                                 ? 'Witaj ponownie! Zaloguj się do swojego konta.'
-                                : 'Dołącz do nas i zarezerwuj swój pierwszy bilet!'
-                            }
+                                : 'Dołącz do nas i zarezerwuj swój pierwszy bilet!'}
                         </p>
                     </div>
 
@@ -193,22 +192,6 @@ const LoginPage = () => {
                         <Link to="/" className="back-home">
                             ← Powrót do strony głównej
                         </Link>
-                    </div>
-
-                    {/* Demo konta */}
-                    <div className="demo-accounts">
-                        <h3>🧪 Konta testowe:</h3>
-                        <div className="demo-list">
-                            <div className="demo-account">
-                                <strong>Admin:</strong> admin@cinema.com / admin123
-                            </div>
-                            <div className="demo-account">
-                                <strong>Pracownik:</strong> staff@cinema.com / staff123
-                            </div>
-                            <div className="demo-account">
-                                <strong>Klient:</strong> user@cinema.com / user123
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>

@@ -24,116 +24,21 @@ const StaffPage = () => {
     });
     const [salesStats, setSalesStats] = useState({});
 
-    // Mock dane dla pracownika
-    const mockTodayShowtimes = [
-        {
-            id: 1,
-            movieTitle: "Avengers: Endgame",
-            time: "18:00",
-            hall: "Sala 1",
-            price: 25,
-            availableSeats: 75,
-            totalSeats: 120,
-            status: 'upcoming'
-        },
-        {
-            id: 2,
-            movieTitle: "Avengers: Endgame",
-            time: "21:00",
-            hall: "Sala 2",
-            price: 25,
-            availableSeats: 48,
-            totalSeats: 80,
-            status: 'upcoming'
-        },
-        {
-            id: 3,
-            movieTitle: "Dune",
-            time: "19:30",
-            hall: "Sala 3",
-            price: 28,
-            availableSeats: 32,
-            totalSeats: 126,
-            status: 'selling'
-        },
-        {
-            id: 4,
-            movieTitle: "Spider-Man: No Way Home",
-            time: "16:00",
-            hall: "Sala 1",
-            price: 26,
-            availableSeats: 0,
-            totalSeats: 120,
-            status: 'finished'
-        }
-    ];
-
-    const mockTodayBookings = [
-        {
-            id: 1001,
-            customerName: "Jan Kowalski",
-            customerEmail: "jan@example.com",
-            movieTitle: "Avengers: Endgame",
-            time: "18:00",
-            seats: ["F5", "F6"],
-            total: 50,
-            status: "confirmed",
-            bookedAt: "10:30",
-            paymentMethod: "online"
-        },
-        {
-            id: 1002,
-            customerName: "Anna Nowak",
-            customerEmail: "anna@example.com",
-            movieTitle: "Dune",
-            time: "19:30",
-            seats: ["G7"],
-            total: 28,
-            status: "confirmed",
-            bookedAt: "14:15",
-            paymentMethod: "online"
-        },
-        {
-            id: 1003,
-            customerName: "Piotr Wiśniewski",
-            customerEmail: "piotr@example.com",
-            movieTitle: "Spider-Man: No Way Home",
-            time: "16:00",
-            seats: ["A1", "A2"],
-            total: 52,
-            status: "checked-in",
-            bookedAt: "09:45",
-            paymentMethod: "cash",
-            isWalkIn: true
-        }
-    ];
-
     useEffect(() => {
-        // Sprawdź uprawnienia
-        if (!user || user.accessLevel > 2) {
+        if (!user || user.role !== 'staff') {
             navigate('/');
             return;
         }
 
-        // Załaduj dane
-        setTodayShowtimes(mockTodayShowtimes);
-        setTodayBookings(mockTodayBookings);
-
-        // Oblicz statystyki dnia
-        const confirmedBookings = mockTodayBookings.filter(b => b.status === 'confirmed' || b.status === 'checked-in');
-        const totalRevenue = confirmedBookings.reduce((sum, b) => sum + b.total, 0);
-        const cashSales = confirmedBookings.filter(b => b.paymentMethod === 'cash').reduce((sum, b) => sum + b.total, 0);
-        const onlineSales = totalRevenue - cashSales;
-        const walkInCustomers = confirmedBookings.filter(b => b.isWalkIn).length;
-
-        setSalesStats({
-            totalTickets: confirmedBookings.reduce((sum, b) => sum + b.seats.length, 0),
-            totalRevenue,
-            cashSales,
-            onlineSales,
-            walkInCustomers,
-            onlineBookings: confirmedBookings.filter(b => !b.isWalkIn).length
-        });
+        // Fetch today's showtimes from backend
+        fetch('http://localhost:5000/api/showtimes/today')
+            .then(res => res.json())
+            .then(setTodayShowtimes);
+        // Fetch today's bookings from backend
+        fetch('http://localhost:5000/api/bookings/today')
+            .then(res => res.json())
+            .then(setTodayBookings);
+        // Optionally, fetch sales stats from backend if available
     }, [user, navigate]);
 
     const showMessage = (text, type = 'success') => {
@@ -145,37 +50,33 @@ const StaffPage = () => {
     const handleWalkInSale = async (e) => {
         e.preventDefault();
         setLoading(true);
-
         try {
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
-            const selectedShowtime = todayShowtimes.find(s => s.id === parseInt(walkInSale.showtimeId));
+            const selectedShowtime = todayShowtimes.find(s => s._id === walkInSale.showtimeId);
             const totalPrice = walkInSale.seats.length * selectedShowtime.price;
-
             const newBooking = {
-                id: Date.now(),
+                showtimeId: walkInSale.showtimeId,
+                seats: walkInSale.seats,
                 customerName: walkInSale.customerData.name,
                 customerEmail: walkInSale.customerData.email,
+                customerPhone: walkInSale.customerData.phone,
                 movieTitle: selectedShowtime.movieTitle,
                 time: selectedShowtime.time,
-                seats: [...walkInSale.seats],
+                hall: selectedShowtime.hall,
                 total: totalPrice,
-                status: "confirmed",
-                bookedAt: new Date().toTimeString().slice(0, 5),
-                paymentMethod: "cash",
+                status: 'confirmed',
+                paymentMethod: 'cash',
                 isWalkIn: true,
                 soldBy: user.name
             };
-
-            setTodayBookings([newBooking, ...todayBookings]);
-
-            // Reset formularza
-            setWalkInSale({
-                showtimeId: '',
-                seats: [],
-                customerData: { name: '', email: '', phone: '' }
+            const res = await fetch('http://localhost:5000/api/bookings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newBooking)
             });
-
+            if (!res.ok) throw new Error('Błąd podczas sprzedaży');
+            const savedBooking = await res.json();
+            setTodayBookings([savedBooking, ...todayBookings]);
+            setWalkInSale({ showtimeId: '', seats: [], customerData: { name: '', email: '', phone: '' } });
             showMessage(`Sprzedano ${walkInSale.seats.length} biletów za ${totalPrice}zł`);
         } catch (error) {
             showMessage('Wystąpił błąd podczas sprzedaży.', 'error');
@@ -188,10 +89,14 @@ const StaffPage = () => {
     const handleCheckIn = async (bookingId) => {
         setLoading(true);
         try {
-            await new Promise(resolve => setTimeout(resolve, 500));
-            setTodayBookings(todayBookings.map(b =>
-                b.id === bookingId ? { ...b, status: 'checked-in', checkedInAt: new Date().toTimeString().slice(0, 5) } : b
-            ));
+            const res = await fetch(`http://localhost:5000/api/bookings/${bookingId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'checked-in', checkedInAt: new Date().toTimeString().slice(0, 5) })
+            });
+            if (!res.ok) throw new Error('Błąd podczas odprawy');
+            const updated = await res.json();
+            setTodayBookings(todayBookings.map(b => b._id === bookingId ? updated : b));
             showMessage('Klient został odprawiony pomyślnie!');
         } catch (error) {
             showMessage('Wystąpił błąd podczas odprawy.', 'error');
@@ -202,13 +107,16 @@ const StaffPage = () => {
 
     const handleCancelBooking = async (bookingId) => {
         if (!window.confirm('Czy na pewno chcesz anulować tę rezerwację?')) return;
-
         setLoading(true);
         try {
-            await new Promise(resolve => setTimeout(resolve, 500));
-            setTodayBookings(todayBookings.map(b =>
-                b.id === bookingId ? { ...b, status: 'cancelled', cancelledAt: new Date().toTimeString().slice(0, 5) } : b
-            ));
+            const res = await fetch(`http://localhost:5000/api/bookings/${bookingId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'cancelled', cancelledAt: new Date().toTimeString().slice(0, 5) })
+            });
+            if (!res.ok) throw new Error('Błąd podczas anulowania');
+            const updated = await res.json();
+            setTodayBookings(todayBookings.map(b => b._id === bookingId ? updated : b));
             showMessage('Rezerwacja została anulowana.');
         } catch (error) {
             showMessage('Wystąpił błąd podczas anulowania.', 'error');
@@ -252,7 +160,7 @@ const StaffPage = () => {
         return seats.slice(0, showtime.availableSeats);
     };
 
-    if (!user || user.accessLevel > 2) {
+    if (!user || user.role !== 'staff') {
         return null;
     }
 

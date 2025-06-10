@@ -14,34 +14,6 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // Symulowane dane użytkowników
-    const mockUsers = [
-        {
-            id: 1,
-            email: 'admin@cinema.com',
-            password: 'admin123',
-            accessLevel: 1,
-            name: 'Administrator',
-            role: 'admin'
-        },
-        {
-            id: 2,
-            email: 'staff@cinema.com',
-            password: 'staff123',
-            accessLevel: 2,
-            name: 'Pracownik',
-            role: 'staff'
-        },
-        {
-            id: 3,
-            email: 'user@cinema.com',
-            password: 'user123',
-            accessLevel: 3,
-            name: 'Jan Kowalski',
-            role: 'customer'
-        }
-    ];
-
     useEffect(() => {
         // Sprawdź czy użytkownik jest zalogowany (localStorage)
         const savedUser = localStorage.getItem('cinema_user');
@@ -52,42 +24,37 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     const login = async (email, password) => {
-        // Symulacja API call
-        return new Promise((resolve, reject) => {
-            setTimeout(() => {
-                const foundUser = mockUsers.find(
-                    u => u.email === email && u.password === password
-                );
-
-                if (foundUser) {
-                    const { password: _, ...userWithoutPassword } = foundUser;
-                    setUser(userWithoutPassword);
-                    localStorage.setItem('cinema_user', JSON.stringify(userWithoutPassword));
-                    resolve(userWithoutPassword);
-                } else {
-                    reject(new Error('Nieprawidłowe dane logowania'));
-                }
-            }, 1000);
-        });
+        try {
+            const res = await fetch('http://localhost:5000/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            if (!res.ok) throw new Error('Nieprawidłowe dane logowania');
+            const data = await res.json();
+            setUser(data.user);
+            localStorage.setItem('cinema_user', JSON.stringify(data.user));
+            return data.user;
+        } catch (err) {
+            throw err;
+        }
     };
 
     const register = async (userData) => {
-        // Symulacja rejestracji
-        return new Promise((resolve, reject) => {
-            setTimeout(() => {
-                const newUser = {
-                    id: Date.now(),
-                    ...userData,
-                    accessLevel: 3, // Domyślnie klient
-                    role: 'customer'
-                };
-
-                const { password: _, ...userWithoutPassword } = newUser;
-                setUser(userWithoutPassword);
-                localStorage.setItem('cinema_user', JSON.stringify(userWithoutPassword));
-                resolve(userWithoutPassword);
-            }, 1000);
-        });
+        try {
+            const res = await fetch('http://localhost:5000/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(userData)
+            });
+            if (!res.ok) throw new Error('Błąd rejestracji');
+            const data = await res.json();
+            setUser(data.user);
+            localStorage.setItem('cinema_user', JSON.stringify(data.user));
+            return data.user;
+        } catch (err) {
+            throw err;
+        }
     };
 
     const logout = () => {
@@ -102,9 +69,9 @@ export const AuthProvider = ({ children }) => {
         logout,
         loading,
         isAuthenticated: !!user,
-        isAdmin: user?.accessLevel <= 1,
-        isStaff: user?.accessLevel <= 2,
-        isCustomer: user?.accessLevel === 3
+        isAdmin: user?.role === 'admin',
+        isStaff: user?.role === 'staff',
+        isCustomer: user?.role === 'customer'
     };
 
     return (

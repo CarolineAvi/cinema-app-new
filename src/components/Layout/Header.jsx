@@ -24,13 +24,13 @@ const Header = () => {
 
                     {user ? (
                         <>
-                            {user.accessLevel <= 2 && (
+                            {user.role === 'admin' && (
                                 <Link to="/admin" className="nav-link">Panel Admin</Link>
                             )}
-                            {user.accessLevel === 2 && (
+                            {user.role === 'staff' && (
                                 <Link to="/staff" className="nav-link">Panel Pracownika</Link>
                             )}
-                            {user.accessLevel === 3 && (
+                            {user.role === 'customer' && (
                                 <Link to="/profile" className="nav-link">Mój Profil</Link>
                             )}
                             <button onClick={handleLogout} className="logout-btn">
