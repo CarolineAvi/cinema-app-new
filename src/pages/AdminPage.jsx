@@ -952,7 +952,6 @@ const AdminPage = () => {
                             <div className="users-list">
                                 <div className="users-table">
                                     <div className="table-header">
-                                        <span>ID</span>
                                         <span>Imię i nazwisko</span>
                                         <span>Email</span>
                                         <span>Rola</span>
@@ -970,7 +969,6 @@ const AdminPage = () => {
 
                                         return (
                                             <div key={user._id} className="table-row">
-                                                <span>#{user._id}</span>
                                                 <span>{user.name || '-'}</span>
                                                 <span>{user.email || '-'}</span>
                                                 <span>
