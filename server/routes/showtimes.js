@@ -14,6 +14,26 @@ router.get('/', async (req, res) => {
     }
 });
 
+// Get showtimes for today
+router.get('/today', async (req, res) => {
+    try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const showtimes = await ShowTime.find({
+            date: {
+                $gte: today.toISOString().split('T')[0],
+                $lt: tomorrow.toISOString().split('T')[0]
+            }
+        }).populate('movieId').populate('hallId');
+        res.json(showtimes);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 // Get one showtime
 router.get('/:id', async (req, res) => {
     try {
@@ -87,11 +107,11 @@ router.delete('/:id', auth, async (req, res) => {
 // Check seat availability
 router.get('/:id/seats', async (req, res) => {
     try {
-        const showtime = await ShowTime.findById(req.params.id);
+        const showtime = await ShowTime.findById(req.params.id).populate('hallId');
         if (!showtime) return res.status(404).json({ message: 'Showtime not found' });
 
         // Get all bookings for this showtime
-        const bookings = await Booking.find({ 
+        const bookings = await Booking.find({
             showtimeId: req.params.id,
             status: { $in: ['confirmed', 'checked-in'] }
         });
@@ -102,7 +122,7 @@ router.get('/:id/seats', async (req, res) => {
         // Return occupied seats and hall layout
         res.json({
             occupiedSeats,
-            hallLayout: showtime.hallLayout,
+            hallLayout: showtime.hallId.seatingLayout,
             totalSeats: showtime.totalSeats
         });
     } catch (err) {

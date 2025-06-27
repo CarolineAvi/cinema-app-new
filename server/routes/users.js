@@ -1,9 +1,11 @@
 const express = require('express');
 const User = require('../models/user');
 const router = express.Router();
+const auth = require('../middleware/auth');
+const bcrypt = require('bcryptjs');
 
 // Get all users
-router.get('/', async (req, res) => {
+router.get('/', auth, async (req, res) => {
     const users = await User.find({}, '-password');
     res.json(users);
 });
@@ -22,23 +24,19 @@ router.post('/', async (req, res) => {
         if (!name || !email || !password) return res.status(400).json({ message: 'Wszystkie pola są wymagane.' });
         const existing = await User.findOne({ email });
         if (existing) return res.status(400).json({ message: 'Email już istnieje.' });
-        let newUser = {
+        const hash = await bcrypt.hash(password, 10);
+        let newUser = new User({
             name,
             email,
-            password,
+            password: hash,
             phone,
             birthDate,
-            role: 'customer', // default
-            accessLevel: 3    // default
-        };
-        // If the request is authenticated and user is admin, allow setting role/accessLevel
-        if (req.user && req.user.role === 'admin') {
-            if (role) newUser.role = role;
-            if (accessLevel) newUser.accessLevel = accessLevel;
-        }
-        const user = new User(newUser);
-        await user.save();
-        const userObj = user.toObject();
+            role: role || 'customer',
+            accessLevel: accessLevel || 3
+        });
+
+        await newUser.save();
+        const userObj = newUser.toObject();
         delete userObj.password;
         res.status(201).json(userObj);
     } catch (err) {
@@ -47,14 +45,17 @@ router.post('/', async (req, res) => {
 });
 
 // Update user
-router.put('/:id', async (req, res) => {
+router.put('/:id', auth, async (req, res) => {
     const user = await User.findByIdAndUpdate(req.params.id, req.body, { new: true, select: '-password' });
     if (!user) return res.status(404).json({ message: 'Nie znaleziono użytkownika.' });
     res.json(user);
 });
 
 // Delete user
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', auth, async (req, res) => {
+    if (req.user.role !== 'admin' && req.user.id !== req.params.id) {
+        return res.status(403).json({ message: 'Brak uprawnień' });
+    }
     const user = await User.findByIdAndDelete(req.params.id);
     if (!user) return res.status(404).json({ message: 'Nie znaleziono użytkownika.' });
     res.json({ message: 'Użytkownik usunięty.' });

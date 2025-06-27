@@ -8,6 +8,7 @@ import ProfilePage from './pages/ProfilePage.jsx';
 import BookingPage from './pages/BookingPage.jsx';
 import AdminPage from './pages/AdminPage.jsx';
 import StaffPage from './pages/StaffPage.jsx';
+import MovieDetailsPage from './pages/MovieDetailsPage.jsx';
 import './App.css';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -34,14 +35,19 @@ function App() {
                     <Header />
                     <main>
                         <Routes>
-                            <Route path="/" element={
-                                <ProtectedRoute allowedRoles={['customer']}>
-                                    <HomePage />
+                            <Route path="/" element={<HomePage />} />
+                            <Route path="/movies/:id" element={<MovieDetailsPage />} />
+                            <Route path="/login" element={<LoginPage />} />
+                            <Route path="/profile" element={
+                                <ProtectedRoute allowedRoles={['customer', 'staff', 'admin']}>
+                                    <ProfilePage />
                                 </ProtectedRoute>
                             } />
-                            <Route path="/login" element={<LoginPage />} />
-                            <Route path="/profile" element={<ProfilePage />} />
-                            <Route path="/booking/:showtimeId" element={<BookingPage />} />
+                            <Route path="/booking/:showtimeId" element={
+                                <ProtectedRoute allowedRoles={['customer', 'staff', 'admin']}>
+                                    <BookingPage />
+                                </ProtectedRoute>
+                            } />
                             <Route path="/admin" element={
                                 <ProtectedRoute allowedRoles={['admin']}>
                                     <AdminPage />

@@ -38,13 +38,19 @@ const StaffPage = () => {
         }
 
         // Fetch today's showtimes from backend
-        fetch('http://localhost:5000/api/showtimes/today')
+        fetch('http://localhost:5000/api/showtimes')
             .then(res => res.json())
-            .then(setTodayShowtimes);
+            .then(data => {
+                const today = new Date().toISOString().split('T')[0];
+                setTodayShowtimes(data.filter(s => s.date === today));
+            });
         // Fetch today's bookings from backend
-        fetch('http://localhost:5000/api/bookings/today')
+        fetch('http://localhost:5000/api/bookings')
             .then(res => res.json())
-            .then(setTodayBookings);
+            .then(data => {
+                const today = new Date().toISOString().split('T')[0];
+                setTodayBookings(data.filter(b => b.bookingDate === today));
+            });
 
         // Fetch sales stats if available (optional)
         fetch('http://localhost:5000/api/bookings/stats/today')
@@ -157,19 +163,23 @@ const StaffPage = () => {
     };
 
     const generateSeatOptions = (showtime) => {
-        if (!showtime) return [];
+        if (!showtime || !showtime.hallId || !showtime.hallId.seatingLayout) return [];
 
         const seats = [];
-        const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-        const seatsPerRow = 12;
+        const { rows, seatsPerRow } = showtime.hallId.seatingLayout;
+        const rowLetters = Array.from({ length: rows }, (_, i) => String.fromCharCode(65 + i));
 
-        for (let row of rows) {
+        for (let row of rowLetters) {
             for (let seat = 1; seat <= seatsPerRow; seat++) {
                 seats.push(`${row}${seat}`);
             }
         }
 
-        return seats.slice(0, showtime.availableSeats);
+        const occupiedSeats = todayBookings
+            .filter(b => b.showtimeId === showtime._id)
+            .flatMap(b => b.seats);
+
+        return seats.filter(s => !occupiedSeats.includes(s));
     };
 
     if (!user || user.role !== 'staff') {

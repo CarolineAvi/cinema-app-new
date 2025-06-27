@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
+const auth = require('../middleware/auth');
 const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
@@ -40,18 +41,10 @@ router.post('/register', async (req, res) => {
 });
 
 // Register staff (protected, admin only)
-router.post('/register/staff', async (req, res) => {
+router.post('/register/staff', auth, async (req, res) => {
     try {
         // Check if requester is admin
-        const authHeader = req.headers['authorization'];
-        const token = authHeader && authHeader.split(' ')[1];
-        if (!token) {
-            return res.status(401).json({ message: 'Brak autoryzacji' });
-        }
-
-        const decoded = jwt.verify(token, JWT_SECRET);
-        const admin = await User.findById(decoded.id);
-        if (!admin || admin.role !== 'admin') {
+        if (req.user.role !== 'admin') {
             return res.status(403).json({ message: 'Brak uprawnień' });
         }
 

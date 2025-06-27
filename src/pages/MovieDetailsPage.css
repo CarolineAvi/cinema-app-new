@@ -1,0 +1,72 @@
+.movie-details-page {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.movie-details-header {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.movie-details-header .movie-poster {
+    width: 300px;
+    height: 450px;
+    object-fit: cover;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.movie-info h1 {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.movie-meta {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    color: #6c757d;
+}
+
+.movie-description {
+    line-height: 1.6;
+    margin-bottom: 1rem;
+}
+
+.movie-director {
+    font-style: italic;
+}
+
+.movie-showtimes h2 {
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid #e1e8ed;
+    padding-bottom: 0.5rem;
+}
+
+.showtimes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.showtime-card {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+}
+
+.showtime-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.showtime-date {
+    font-weight: 600;
+}

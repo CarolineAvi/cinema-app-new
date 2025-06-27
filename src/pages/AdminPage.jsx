@@ -73,7 +73,11 @@ const AdminPage = () => {
         fetch('http://localhost:5000/api/bookings')
             .then(res => res.json())
             .then(setBookings);
-        fetch('http://localhost:5000/api/users')
+        fetch('http://localhost:5000/api/users', {
+            headers: {
+                'Authorization': `Bearer ${user.token}`
+            }
+        })
             .then(res => res.json())
             .then(setUsers);
         fetch('http://localhost:5000/api/halls')
@@ -207,7 +211,8 @@ const AdminPage = () => {
         setLoading(true);
         try {
             const res = await fetch(`http://localhost:5000/api/showtimes/${showtimeId}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${user.token}` }
             });
             if (!res.ok) throw new Error('Błąd podczas usuwania seansu');
             setShowtimes(showtimes.filter(s => s._id !== showtimeId));
@@ -359,17 +364,13 @@ const AdminPage = () => {
         e.preventDefault();
         setLoading(true);
         try {
-            const res = await fetch('http://localhost:5000/api/auth/register', {
+            const res = await fetch('http://localhost:5000/api/auth/register/staff', {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${user.token}`
                 },
-                body: JSON.stringify({
-                    ...newStaff,
-                    role: 'staff',
-                    accessLevel: 2
-                })
+                body: JSON.stringify(newStaff)
             });
             if (!res.ok) throw new Error('Błąd podczas dodawania pracownika');
             const data = await res.json();
@@ -790,27 +791,27 @@ const AdminPage = () => {
                                         <span>Akcje</span>
                                     </div>
                                     {showtimes.map(showtime => {
-                                        const movie = movies.find(m => m._id === showtime.movieId);
-                                        const hall = halls.find(h => h._id === showtime.hallId);
+                                        const movieTitle = showtime.movieId?.title || 'N/A';
+                                        const hallName = showtime.hallId?.name || 'N/A';
                                         const formattedDate = new Date(showtime.date).toLocaleDateString('pl-PL');
-                                        const occupancyRate = Math.round((showtime.soldTickets / showtime.totalSeats) * 100) || 0;
-                                        
+                                        const occupancyRate = showtime.totalSeats > 0 ? Math.round((showtime.soldTickets / showtime.totalSeats) * 100) : 0;
+
                                         return (
                                             <div key={showtime._id} className="table-row">
                                                 <span className="showtime-movie">
-                                                    {movie?.title || showtime.movieTitle || '—'}
-                                                    {movie?.poster && (
-                                                        <img src={movie.poster} alt={movie.title} className="showtime-poster" />
+                                                    {movieTitle}
+                                                    {showtime.movieId?.poster && (
+                                                        <img src={showtime.movieId.poster} alt={movieTitle} className="showtime-poster" />
                                                     )}
                                                 </span>
-                                                <span>{hall?.name || showtime.hall || '—'}</span>
+                                                <span>{hallName}</span>
                                                 <span>{formattedDate}</span>
                                                 <span>{showtime.time}</span>
                                                 <span>{showtime.price} zł</span>
                                                 <span>
                                                     <div className="occupancy-mini">
-                                                        <div 
-                                                            className="occupancy-mini-fill" 
+                                                        <div
+                                                            className="occupancy-mini-fill"
                                                             style={{width: `${occupancyRate}%`}}
                                                         />
                                                         <span className="occupancy-text">
@@ -820,15 +821,15 @@ const AdminPage = () => {
                                                 </span>
                                                 <span>
                                                     <div className="showtime-actions">
-                                                        <button 
-                                                            className="btn btn-primary btn-sm" 
-                                                            onClick={() => navigate(`/movies/${movie?._id}`)}
+                                                        <button
+                                                            className="btn btn-primary btn-sm"
+                                                            onClick={() => navigate(`/movies/${showtime.movieId?._id}`)}
                                                         >
                                                             Szczegóły
                                                         </button>
-                                                        <button 
-                                                            className="btn btn-danger btn-sm" 
-                                                            onClick={() => handleDeleteShowtime(showtime._id)} 
+                                                        <button
+                                                            className="btn btn-danger btn-sm"
+                                                            onClick={() => handleDeleteShowtime(showtime._id)}
                                                             disabled={loading}
                                                         >
                                                             Usuń
@@ -868,7 +869,6 @@ const AdminPage = () => {
                             <div className="bookings-list">
                                 <div className="bookings-table">
                                     <div className="table-header">
-                                        <span>ID</span>
                                         <span>Klient</span>
                                         <span>Film</span>
                                         <span>Data/Godzina</span>
@@ -881,7 +881,6 @@ const AdminPage = () => {
                                         const status = getStatusBadge(booking.status);
                                         return (
                                             <div key={booking._id} className="table-row">
-                                                <span>#{booking._id}</span>
                                                 <span>
                                                     <div className="customer-info">
                                                         <div>{booking.customerName || '-'}</div>
@@ -952,7 +951,6 @@ const AdminPage = () => {
                             <div className="users-list">
                                 <div className="users-table">
                                     <div className="table-header">
-                                        <span>ID</span>
                                         <span>Imię i nazwisko</span>
                                         <span>Email</span>
                                         <span>Rola</span>
@@ -970,7 +968,6 @@ const AdminPage = () => {
 
                                         return (
                                             <div key={user._id} className="table-row">
-                                                <span>#{user._id}</span>
                                                 <span>{user.name || '-'}</span>
                                                 <span>{user.email || '-'}</span>
                                                 <span>

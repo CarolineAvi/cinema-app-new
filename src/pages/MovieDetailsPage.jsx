@@ -15,18 +15,16 @@ const MovieDetailsPage = () => {
     useEffect(() => {
         const fetchMovieDetails = async () => {
             try {
-                const [movieRes, showtimesRes] = await Promise.all([
-                    fetch(`http://localhost:5000/api/movies/${id}`),
-                    fetch(`http://localhost:5000/api/showtimes/movie/${id}`)
-                ]);
-                
+                const movieRes = await fetch(`http://localhost:5000/api/movies/${id}`);
                 if (!movieRes.ok) throw new Error('Nie znaleziono filmu');
-                
                 const movieData = await movieRes.json();
-                const showtimesData = await showtimesRes.json();
-                
                 setMovie(movieData);
-                setShowtimes(showtimesData);
+
+                const showtimesRes = await fetch(`http://localhost:5000/api/showtimes`);
+                if (showtimesRes.ok) {
+                    const showtimesData = await showtimesRes.json();
+                    setShowtimes(showtimesData.filter(s => s.movieId._id === id));
+                }
             } catch (err) {
                 setError(err.message);
             } finally {

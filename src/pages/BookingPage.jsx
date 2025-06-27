@@ -71,7 +71,7 @@ const BookingPage = () => {
     };
 
     const getSeatPrice = (row) => {
-        if (!showtime) return showtime?.price || 0;
+        if (!showtime || !showtime.hallLayout || !showtime.hallLayout.vipRows) return showtime?.price || 0;
 
         const isVip = showtime.hallLayout.vipRows.includes(row);
         return showtime.price + (isVip ? 5 : 0);
@@ -139,7 +139,7 @@ const BookingPage = () => {
             }
 
             const booking = await res.json();
-            setBookingResult(booking);
+            setBookingResult({ ...booking, customerData });
             setStep(4);
         } catch (error) {
             alert(error.message || 'Wystąpił błąd podczas rezerwacji. Spróbuj ponownie.');

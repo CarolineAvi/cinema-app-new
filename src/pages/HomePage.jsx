@@ -7,24 +7,18 @@ const HomePage = () => {
     const [selectedMovie, setSelectedMovie] = useState(null);
 
     useEffect(() => {
-        Promise.all([
-            fetch('http://localhost:5000/api/movies'),
-            fetch('http://localhost:5000/api/showtimes')
-        ])
-            .then(([moviesRes, showtimesRes]) => 
-                Promise.all([moviesRes.json(), showtimesRes.json()])
-            )
-            .then(([moviesData, showtimesData]) => {
-                const moviesWithShowtimes = moviesData.map(movie => ({
-                    ...movie,
-                    showtimes: showtimesData.filter(st => st.movieId === movie._id)
-                }));
-                setMovies(moviesWithShowtimes);
-            });
+        fetch('http://localhost:5000/api/movies')
+            .then(res => res.json())
+            .then(setMovies);
     }, []);
 
     const handleMovieSelect = (movie) => {
-        setSelectedMovie(movie);
+        fetch('http://localhost:5000/api/showtimes')
+            .then(res => res.json())
+            .then(showtimesData => {
+                const movieShowtimes = showtimesData.filter(st => st.movieId._id === movie._id);
+                setSelectedMovie({ ...movie, showtimes: movieShowtimes });
+            });
     };
 
     return (

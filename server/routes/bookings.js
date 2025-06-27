@@ -22,6 +22,46 @@ router.get('/user/:userId', async (req, res) => {
     res.json(bookings);
 });
 
+// Get today's bookings
+router.get('/today', async (req, res) => {
+    const today = new Date().toISOString().split('T')[0];
+    const bookings = await Booking.find({ bookingDate: today });
+    res.json(bookings);
+});
+
+// Get today's sales stats
+router.get('/stats/today', async (req, res) => {
+    const today = new Date().toISOString().split('T')[0];
+    const bookings = await Booking.find({ bookingDate: today });
+
+    const stats = bookings.reduce((acc, booking) => {
+        if (booking.status !== 'cancelled') {
+            acc.totalRevenue += booking.total;
+            acc.totalTickets += booking.seats.length;
+            if (booking.paymentMethod === 'cash') {
+                acc.cashSales += booking.total;
+            } else {
+                acc.onlineSales += booking.total;
+            }
+            if (booking.isWalkIn) {
+                acc.walkInCustomers++;
+            } else {
+                acc.onlineBookings++;
+            }
+        }
+        return acc;
+    }, {
+        totalRevenue: 0,
+        cashSales: 0,
+        onlineSales: 0,
+        totalTickets: 0,
+        walkInCustomers: 0,
+        onlineBookings: 0
+    });
+
+    res.json(stats);
+});
+
 // Create new booking
 router.post('/', async (req, res) => {
     try {

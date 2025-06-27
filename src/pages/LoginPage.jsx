@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import './LoginPage.css';
 
 const LoginPage = () => {
-    const { login, register } = useAuth();
+    const { user, login, register } = useAuth();
     const [isLogin, setIsLogin] = useState(true);
     const [formData, setFormData] = useState({
         email: '',
@@ -20,6 +20,12 @@ const LoginPage = () => {
 
     // Przekierowanie po zalogowaniu
     const from = location.state?.from?.pathname || '/';
+
+    useEffect(() => {
+        if (user) {
+            navigate(from, { replace: true });
+        }
+    }, [user, navigate, from]);
 
     const handleChange = (e) => {
         setFormData({
@@ -38,9 +44,13 @@ const LoginPage = () => {
             if (isLogin) {
                 const userData = await login(formData.email, formData.password);
                 // Redirect based on role
-                if (userData.role === 'admin') navigate('/admin');
-                else if (userData.role === 'staff') navigate('/staff');
-                else navigate('/');
+                if (userData.role === 'admin') {
+                    navigate('/admin');
+                } else if (userData.role === 'staff') {
+                    navigate('/staff');
+                } else {
+                    navigate(from, { replace: true });
+                }
             } else {
                 // Rejestracja
                 if (formData.password !== formData.confirmPassword) {
