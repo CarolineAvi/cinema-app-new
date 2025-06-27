@@ -243,7 +243,37 @@ To run this project locally, follow these steps:
 7.  **Access the application**:
     - Open your browser and navigate to `http://localhost:5173`.
 
-## 8. Recent Bug Fixes and Improvements
+## 8. ScreenShots
+
+### Main Page (After clicking on a movie)
+
+![](./screenshots/selected_movie.png)
+
+### **Admin Panel**
+
+---
+
+### 1. Dashboard
+   
+  ![](./screenshots/dashboard.png)
+
+### 2. Showtimes
+   
+  ![](./screenshots/showtimes.png)
+
+### 3. Users
+
+  ![](./screenshots/users.png)
+
+### 4. Halls
+
+  ![](./screenshots/halls.png)
+
+### 5. Employees
+
+  ![](./screenshots/employees.png)
+
+## 9. Recent Bug Fixes and Improvements
 
 - **Routing and Redirects**: The main application routing in `App.jsx` has been completely restructured to better handle public and protected routes. The login redirect logic has been fixed to ensure users are sent to the correct page after authentication.
 - **Admin Panel Data**: Fixed a bug in the Admin Panel where movie and hall names were not appearing in the showtimes list. Also resolved an issue where the "Users" and "Staff" tabs were empty due to a missing authorization header.
